@@ -1,0 +1,6 @@
+-keep class com.google.android.filament.** { *; }
+-keepclassmembers class * { native <methods>; }
+-keepattributes *Annotation*, InnerClasses, Signature
+-keep,includedescriptorclasses class com.cozyhome.game.**$$serializer { *; }
+-keepclassmembers class com.cozyhome.game.** { *** Companion; }
+-keepclasseswithmembers class com.cozyhome.game.** { kotlinx.serialization.KSerializer serializer(...); }
