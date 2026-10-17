@@ -17,6 +17,7 @@ sealed interface SportEvent {
     data class Lap(val lap: Int, val millis: Long) : SportEvent
     data object OffTrack : SportEvent
     data class Finished(val kind: SportKind, val score: Int, val detail: Int, val millis: Long = 0L) : SportEvent
+    data class Bounce(val kind: SportKind, val speed: Float) : SportEvent
 }
 
 enum class SportKind { BASKETBALL, SOCCER, JOGGING }

@@ -57,6 +57,28 @@ fun itemName(id: String): Int = when (id) {
     "fruit_tree" -> R.string.item_fruit_tree
     "bbq" -> R.string.item_bbq
     "pool" -> R.string.item_pool
+    "jack_o_lantern" -> R.string.item_jack_o_lantern
+    "candy_cauldron" -> R.string.item_candy_cauldron
+    "ghost_lamp" -> R.string.item_ghost_lamp
+    "xmas_tree" -> R.string.item_xmas_tree
+    "snowman" -> R.string.item_snowman
+    "gift_pile" -> R.string.item_gift_pile
+    "red_lantern" -> R.string.item_red_lantern
+    "apricot_tree" -> R.string.item_apricot_tree
+    "firecracker_string" -> R.string.item_firecracker_string
+    "star_lantern" -> R.string.item_star_lantern
+    "rabbit_lantern" -> R.string.item_rabbit_lantern
+    "mooncake_table" -> R.string.item_mooncake_table
+    "heart_arch" -> R.string.item_heart_arch
+    "rose_vase" -> R.string.item_rose_vase
+    "cherry_tree" -> R.string.item_cherry_tree
+    "flower_cart" -> R.string.item_flower_cart
+    "ice_cream_cart" -> R.string.item_ice_cream_cart
+    "beach_chair" -> R.string.item_beach_chair
+    "golden_trophy" -> R.string.item_golden_trophy
+    "fish_trophy" -> R.string.item_fish_trophy
+    "bug_case" -> R.string.item_bug_case
+    "chef_statue" -> R.string.item_chef_statue
     else -> R.string.app_name
 }
 
@@ -83,6 +105,8 @@ fun categoryName(c: Category): Int = when (c) {
     Category.RUGS -> R.string.cat_rugs
     Category.FUN -> R.string.cat_fun
     Category.OUTDOOR -> R.string.cat_outdoor
+    Category.FESTIVAL -> R.string.cat_festival
+    Category.SPECIAL -> R.string.cat_special
 }
 
 fun categoryEmoji(c: Category): String = when (c) {
@@ -96,6 +120,8 @@ fun categoryEmoji(c: Category): String = when (c) {
     Category.RUGS -> "🔶"
     Category.FUN -> "🎮"
     Category.OUTDOOR -> "🌳"
+    Category.FESTIVAL -> "🎉"
+    Category.SPECIAL -> "🏆"
 }
 
 fun actionEmoji(kind: ActionKind): String = when (kind) {
@@ -113,6 +139,9 @@ fun actionEmoji(kind: ActionKind): String = when (kind) {
     ActionKind.LAMP_ON, ActionKind.LAMP_OFF -> "💡"
     ActionKind.BOUNCE -> "🤸"
     ActionKind.SWING -> "🎈"
+    ActionKind.FISH -> "🐟"
+    ActionKind.CATCH_BUG -> "✨"
+    ActionKind.COOK -> "🍳"
 }
 
 @Composable
@@ -134,6 +163,9 @@ fun interactionLabel(i: Interaction): String = when (i.kind) {
     ActionKind.LAMP_OFF -> stringResource(R.string.act_lamp_off)
     ActionKind.BOUNCE -> stringResource(R.string.act_bounce)
     ActionKind.SWING -> stringResource(R.string.act_swing)
+    ActionKind.FISH -> stringResource(R.string.act_fish)
+    ActionKind.CATCH_BUG -> stringResource(R.string.act_catch, stringResource(bugName(i.detail)))
+    ActionKind.COOK -> stringResource(R.string.act_cook)
 }
 
 @Composable
@@ -160,5 +192,92 @@ fun msgText(msg: Msg, arg: String): String {
         Msg.NO_SPACE -> stringResource(R.string.msg_no_space)
         Msg.PLACED -> stringResource(R.string.msg_placed)
         Msg.WELCOME -> stringResource(R.string.msg_welcome, arg)
+        Msg.FISH_ESCAPED -> stringResource(R.string.msg_fish_escaped)
+        Msg.FISH_SNAPPED -> stringResource(R.string.msg_fish_snapped)
+        Msg.TOO_EARLY -> stringResource(R.string.msg_too_early)
+        Msg.BUG_MISSED -> stringResource(R.string.msg_bug_missed)
+        Msg.BUG_CAUGHT -> stringResource(R.string.msg_bug_caught)
+        Msg.COOKED -> stringResource(R.string.msg_cooked)
+        Msg.MISSING_INGREDIENTS -> stringResource(R.string.msg_missing)
+        Msg.QUEST_DONE -> stringResource(R.string.msg_quest_done)
+        Msg.MILESTONE -> stringResource(R.string.msg_milestone)
+        Msg.FESTIVAL_TOKENS -> stringResource(R.string.msg_tokens, arg)
     }
+}
+
+@StringRes
+fun fishName(id: String?): Int = when (id) {
+    "minnow" -> R.string.fish_minnow
+    "goldfish" -> R.string.fish_goldfish
+    "carp" -> R.string.fish_carp
+    "bluegill" -> R.string.fish_bluegill
+    "bass" -> R.string.fish_bass
+    "trout" -> R.string.fish_trout
+    "catfish" -> R.string.fish_catfish
+    "koi" -> R.string.fish_koi
+    "pufferfish" -> R.string.fish_pufferfish
+    "golden_koi" -> R.string.fish_golden_koi
+    "old_boot" -> R.string.fish_old_boot
+    "treasure" -> R.string.fish_treasure
+    "new" -> R.string.fish_new
+    "record" -> R.string.fish_record
+    else -> R.string.fish_minnow
+}
+
+@StringRes
+fun bugName(id: String?): Int = when (id) {
+    "butterfly" -> R.string.bug_butterfly
+    "blue_morpho" -> R.string.bug_blue_morpho
+    "bee" -> R.string.bug_bee
+    "ladybug" -> R.string.bug_ladybug
+    "dragonfly" -> R.string.bug_dragonfly
+    "snail" -> R.string.bug_snail
+    "stag_beetle" -> R.string.bug_stag_beetle
+    "firefly" -> R.string.bug_firefly
+    "moth" -> R.string.bug_moth
+    "cicada" -> R.string.bug_cicada
+    "title" -> R.string.bug_title
+    else -> R.string.bug_butterfly
+}
+
+@StringRes
+fun dishName(id: String?): Int = when (id) {
+    "salad" -> R.string.dish_salad
+    "carrot_soup" -> R.string.dish_carrot_soup
+    "corn_cob" -> R.string.dish_corn_cob
+    "tomato_pasta" -> R.string.dish_tomato_pasta
+    "veggie_stew" -> R.string.dish_veggie_stew
+    "strawberry_cake" -> R.string.dish_strawberry_cake
+    "pumpkin_pie" -> R.string.dish_pumpkin_pie
+    "seed_cookies" -> R.string.dish_seed_cookies
+    else -> R.string.dish_salad
+}
+
+@StringRes
+fun festivalName(id: String?): Int = when (id) {
+    "LUNAR_NEW_YEAR" -> R.string.fest_lunar_new_year
+    "VALENTINE" -> R.string.fest_valentine
+    "SPRING_BLOOM" -> R.string.fest_spring_bloom
+    "SUMMER_FUN" -> R.string.fest_summer_fun
+    "MID_AUTUMN" -> R.string.fest_mid_autumn
+    "HALLOWEEN" -> R.string.fest_halloween
+    "CHRISTMAS" -> R.string.fest_christmas
+    else -> R.string.fest_halloween
+}
+
+@StringRes
+fun questText(id: String?): Int = when (id) {
+    "HARVEST" -> R.string.quest_harvest
+    "PLANT" -> R.string.quest_plant
+    "WATER" -> R.string.quest_water
+    "FISH" -> R.string.quest_fish
+    "BUG" -> R.string.quest_bug
+    "COOK" -> R.string.quest_cook
+    "BASKET" -> R.string.quest_basket
+    "SOCCER" -> R.string.quest_soccer
+    "JOG" -> R.string.quest_jog
+    "DECORATE" -> R.string.quest_decorate
+    "BOUNCE" -> R.string.quest_bounce
+    "RARE_FISH" -> R.string.quest_rare_fish
+    else -> R.string.quest_harvest
 }

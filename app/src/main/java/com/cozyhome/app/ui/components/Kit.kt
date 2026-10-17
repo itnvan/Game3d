@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cozyhome.app.audio.LocalSfx
 import com.cozyhome.app.ui.theme.Cream
 import com.cozyhome.app.ui.theme.Glass
 import com.cozyhome.app.ui.theme.GlassEdge
@@ -52,18 +53,23 @@ import com.cozyhome.app.ui.theme.Sun
 import com.cozyhome.app.ui.theme.SunDark
 import com.cozyhome.app.ui.theme.SunLight
 import com.cozyhome.app.ui.theme.White
+import com.cozyhome.game.audio.Sfx
 
 fun Color.deeper(f: Float = 0.22f) = Color(red * (1 - f), green * (1 - f), blue * (1 - f), alpha)
 fun Color.brighter(f: Float = 0.25f) = Color(red + (1 - red) * f, green + (1 - green) * f, blue + (1 - blue) * f, alpha)
 
 @Composable
-fun Modifier.bouncyClick(enabled: Boolean = true, onClick: () -> Unit): Modifier {
+fun Modifier.bouncyClick(enabled: Boolean = true, sound: Sfx? = Sfx.TAP, onClick: () -> Unit): Modifier {
+    val sfx = LocalSfx.current
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val s by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.42f, stiffness = 650f), label = "press")
     return this
         .scale(s)
-        .clickable(interactionSource = source, indication = null, enabled = enabled, onClick = onClick)
+        .clickable(interactionSource = source, indication = null, enabled = enabled) {
+            sound?.let { sfx.play(it) }
+            onClick()
+        }
 }
 
 private fun Modifier.gloss(color: Color, shape: Shape, enabled: Boolean): Modifier {
@@ -91,7 +97,7 @@ fun ChunkyButton(
     val shape = RoundedCornerShape(height / 2)
     Box(
         modifier
-            .bouncyClick(enabled, onClick)
+            .bouncyClick(enabled, onClick = onClick)
             .gloss(color, shape, enabled)
             .padding(horizontal = 18.dp)
             .height(height - 3.5.dp),
@@ -124,10 +130,11 @@ fun RoundButton(
     size: Dp = 52.dp,
     label: String? = null,
     enabled: Boolean = true,
+    sound: Sfx? = Sfx.TAP,
     onClick: () -> Unit,
 ) {
     val ico = iconFor(emoji)
-    IconButton(ico, color, modifier, size, label, enabled, emoji, onClick)
+    IconButton(ico, color, modifier, size, label, enabled, emoji, sound, onClick)
 }
 
 @Composable
@@ -139,12 +146,13 @@ fun IconButton(
     label: String? = null,
     enabled: Boolean = true,
     fallback: String = "",
+    sound: Sfx? = Sfx.TAP,
     onClick: () -> Unit,
 ) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
-                .bouncyClick(enabled, onClick)
+                .bouncyClick(enabled, sound, onClick)
                 .gloss(color, CircleShape, enabled)
                 .size(size - 3.5.dp)
                 .drawBehind {

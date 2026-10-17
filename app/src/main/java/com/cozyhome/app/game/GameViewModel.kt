@@ -6,7 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.cozyhome.app.audio.GameAudio
 import com.cozyhome.app.data.SaveStore
+import com.cozyhome.game.audio.Sfx
+import com.cozyhome.game.audio.SoundCues
 import com.cozyhome.game.decor.Catalog
 import com.cozyhome.game.decor.ItemDef
 import com.cozyhome.game.decor.Layer
@@ -31,6 +34,8 @@ import com.cozyhome.game.state.Rules
 import com.cozyhome.game.state.SaveData
 import com.cozyhome.game.state.Zone
 import com.cozyhome.game.world.DayClock
+import com.cozyhome.game.progress.Festivals
+import com.cozyhome.game.progress.Progression
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -42,7 +47,7 @@ import java.util.TimeZone
 
 enum class Haptic { LIGHT, SUCCESS, FAIL }
 
-class GameViewModel(application: Application, private val store: SaveStore) : AndroidViewModel(application) {
+class GameViewModel(application: Application, private val store: SaveStore, val audio: GameAudio) : AndroidViewModel(application) {
 
     var save by mutableStateOf(SaveData())
         private set
@@ -108,7 +113,9 @@ class GameViewModel(application: Application, private val store: SaveStore) : An
         hud.mode = world.mode
         hud.interaction = world.interaction
         hud.inside = world.frame.inside
-        hud.hourQuarter = (DayClock.hour(now, save.clockOffsetMs) * 4f).toInt()
+        val hour = DayClock.hour(now, save.clockOffsetMs)
+        hud.hourQuarter = (hour * 4f).toInt()
+        audio.setNight(DayClock.isNight(hour))
         plotTimer -= dt
         if (plotTimer <= 0f) {
             plotTimer = 0.5f
@@ -140,10 +147,110 @@ class GameViewModel(application: Application, private val store: SaveStore) : An
             hud.jogOnTrack = r.onTrack
         }
         hud.bounceCombo = world.bounceCombo
+        val f = world.frame
+        hud.fishPhase = f.fishPhase
+        hud.fishTension.floatValue = f.fishTension
+        hud.fishProgress.floatValue = f.fishProgress
+        dailyTimer -= dt
+        if (dailyTimer <= 0f) {
+            dailyTimer = 1f
+            refreshDaily()
+        }
         world.decorShift = if (hud.decorEdit == null) 3.4f else 0f
         if (hud.toasts.isNotEmpty() && now - hud.toasts.first().bornAt > 2600) hud.toasts.removeAt(0)
         if (hud.rewards.isNotEmpty() && now - hud.rewards.first().bornAt > 1500) hud.rewards.removeAt(0)
     }
+
+    private var dailyTimer = 0f
+
+    private fun refreshDaily() {
+        if (!save.created) return
+        val today = world.today
+        if (today == 0L) return
+        val fest = world.festival
+        val d = Progression.refreshDaily(save.daily, today, level, fest != null)
+        if (d != save.daily) {
+            access.update { it.copy(daily = d) }
+            if (!d.loginClaimed && hud.panel == null) hud.panel = HudPanel.LOGIN
+        }
+        hud.festival = fest
+        hud.festivalNext = if (fest == null) Festivals.next(today).let { it.festival to (it.startDay - today).toInt() } else null
+        hud.questsReady = save.daily.quests.count { it.done && !it.claimed }
+        hud.loginReady = !save.daily.loginClaimed
+        hud.albumReady = Progression.unclaimedMilestones(save.album).size
+    }
+
+    fun openPanel(p: HudPanel?) {
+        hud.panel = p
+    }
+
+    fun claimQuest(index: Int) {
+        val q = save.daily.quests.getOrNull(index) ?: return
+        if (!q.done || q.claimed) return
+        access.update { s -> s.copy(daily = s.daily.copy(quests = s.daily.quests.mapIndexed { i, it -> if (i == index) it.copy(claimed = true) else it }), tokens = s.tokens + q.tokens) }
+        events.clear()
+        world.grant(q.coins, q.xp, null, events)
+        handleEvents(System.currentTimeMillis())
+        if (q.tokens > 0) toast(Msg.FESTIVAL_TOKENS, q.tokens.toString())
+        refreshDaily()
+    }
+
+    fun claimLogin() {
+        if (save.daily.loginClaimed) return
+        val r = Progression.LOGIN[(save.daily.streak - 1).coerceIn(0, Progression.LOGIN.size - 1)]
+        access.update { s ->
+            val inv = s.inventory.toMutableMap()
+            r.item?.let { inv[it] = (inv[it] ?: 0) + 1 }
+            s.copy(daily = s.daily.copy(loginClaimed = true), tokens = s.tokens + r.tokens, inventory = inv)
+        }
+        events.clear()
+        world.grant(r.coins, r.xp, null, events)
+        handleEvents(System.currentTimeMillis())
+        refreshDaily()
+    }
+
+    fun claimMilestone(key: String) {
+        val m = Progression.unclaimedMilestones(save.album).firstOrNull { it.key == key } ?: return
+        access.update { s ->
+            val inv = s.inventory.toMutableMap()
+            m.item?.let { inv[it] = (inv[it] ?: 0) + 1 }
+            s.copy(album = s.album.copy(milestones = s.album.milestones + m.key), inventory = inv)
+        }
+        events.clear()
+        world.grant(m.coins, 20, null, events)
+        handleEvents(System.currentTimeMillis())
+        toast(Msg.MILESTONE)
+        refreshDaily()
+    }
+
+    fun setHold(down: Boolean) {
+        input.hold = down
+    }
+
+    fun stopFishing() {
+        input.hold = false
+        world.stopFishing()
+    }
+
+    fun cook(recipe: String) {
+        hud.panel = null
+        events.clear()
+        world.cook(recipe, events)
+        handleEvents(System.currentTimeMillis())
+    }
+
+    fun emote(e: com.cozyhome.game.game.Emote) {
+        hud.panel = null
+        world.emote(e)
+    }
+
+    fun dismissCards() {
+        hud.fishCard = null
+        hud.bugCard = null
+        hud.dishCard = null
+    }
+
+    fun debugFestival(name: String) = access.update { it.copy(festivalDebug = name) }
 
     private fun refreshPlots(now: Long) {
         val visuals = save.plots.map { p ->
@@ -163,6 +270,25 @@ class GameViewModel(application: Application, private val store: SaveStore) : An
         for (e in events) {
             when (e) {
                 is WorldEvent.OpenSeeds -> hud.seedPlot = e.plot
+                is WorldEvent.OpenCook -> hud.panel = HudPanel.COOK
+                is WorldEvent.FishCaught -> {
+                    hud.fishCard = e
+                    _haptics.tryEmit(Haptic.SUCCESS)
+                }
+                is WorldEvent.BugCaught -> {
+                    hud.bugCard = e
+                    _haptics.tryEmit(Haptic.SUCCESS)
+                }
+                is WorldEvent.Cooked -> {
+                    hud.dishCard = e
+                    _haptics.tryEmit(Haptic.SUCCESS)
+                }
+                is WorldEvent.Fish -> when (e.event) {
+                    com.cozyhome.game.activities.FishEvent.Bite -> _haptics.tryEmit(Haptic.SUCCESS)
+                    com.cozyhome.game.activities.FishEvent.Nibble -> _haptics.tryEmit(Haptic.LIGHT)
+                    com.cozyhome.game.activities.FishEvent.Snapped, com.cozyhome.game.activities.FishEvent.Escaped -> _haptics.tryEmit(Haptic.FAIL)
+                    else -> Unit
+                }
                 is WorldEvent.Toast -> toast(e.msg, e.arg, now)
                 is WorldEvent.Reward -> if (e.coins != 0 || e.xp != 0) hud.rewards += RewardPop(idSeq++, e.coins, e.xp, now)
                 is WorldEvent.LevelUp -> {
@@ -179,13 +305,16 @@ class GameViewModel(application: Application, private val store: SaveStore) : An
                     SportEvent.BasketMiss, SportEvent.ShotMissed -> _haptics.tryEmit(Haptic.FAIL)
                     else -> Unit
                 }
+                is WorldEvent.Footstep, is WorldEvent.Bounced, is WorldEvent.Act -> Unit
             }
         }
         if (events.any { it is WorldEvent.Reward && it.coins > 0 }) _haptics.tryEmit(Haptic.LIGHT)
+        audio.play(SoundCues.collect(events))
     }
 
     private fun toast(msg: Msg, arg: String = "", now: Long = System.currentTimeMillis()) {
         if (hud.toasts.lastOrNull()?.let { it.msg == msg && it.arg == arg && now - it.bornAt < 1200 } == true) return
+        audio.play(SoundCues.of(msg))
         hud.toasts += ToastItem(idSeq++, msg, arg, now)
         while (hud.toasts.size > 3) hud.toasts.removeAt(0)
     }
@@ -284,7 +413,15 @@ class GameViewModel(application: Application, private val store: SaveStore) : An
             return
         }
         val owned = save.inventory[def.id] ?: 0
-        if (owned <= 0 && save.coins < def.price) {
+        if (owned <= 0 && def.reward) {
+            toast(Msg.LOCKED, "?")
+            return
+        }
+        if (owned <= 0 && def.tokenPrice > 0 && save.tokens < def.tokenPrice) {
+            toast(Msg.NOT_ENOUGH_COINS)
+            return
+        }
+        if (owned <= 0 && def.tokenPrice == 0 && save.coins < def.price) {
             toast(Msg.NOT_ENOUGH_COINS)
             return
         }
@@ -299,6 +436,7 @@ class GameViewModel(application: Application, private val store: SaveStore) : An
         val item = PlacedItem(save.nextUid, def.id, spot.x, spot.z, 0, 0, zone)
         hud.decorEdit = DecorEdit(item, isNew = true, fromShop = owned <= 0, valid = true)
         _haptics.tryEmit(Haptic.LIGHT)
+        audio.play(Sfx.PICK)
     }
 
     private fun withEdit(transform: (PlacedItem, ItemDef) -> PlacedItem) {
@@ -333,13 +471,23 @@ class GameViewModel(application: Application, private val store: SaveStore) : An
             if (e.isNew) {
                 val inv = s.inventory.toMutableMap()
                 var coins = s.coins
-                if (e.fromShop) coins -= def.price else inv[def.id] = ((inv[def.id] ?: 1) - 1).coerceAtLeast(0)
-                s.copy(placed = s.placed + e.item, nextUid = s.nextUid + 1, coins = coins, inventory = inv.filterValues { it > 0 })
+                var tokens = s.tokens
+                if (e.fromShop) {
+                    if (def.tokenPrice > 0) tokens -= def.tokenPrice else coins -= def.price
+                } else {
+                    inv[def.id] = ((inv[def.id] ?: 1) - 1).coerceAtLeast(0)
+                }
+                s.copy(placed = s.placed + e.item, nextUid = s.nextUid + 1, coins = coins, tokens = tokens, inventory = inv.filterValues { it > 0 })
             } else {
                 s.copy(placed = s.placed.map { if (it.uid == e.item.uid) e.item else it })
             }
         }
-        if (e.isNew && e.fromShop) hud.rewards += RewardPop(idSeq++, -def.price, 0, System.currentTimeMillis())
+        if (e.isNew && e.fromShop && def.tokenPrice == 0) hud.rewards += RewardPop(idSeq++, -def.price, 0, System.currentTimeMillis())
+        if (e.isNew) {
+            events.clear()
+            world.progress(com.cozyhome.game.progress.QuestKind.DECORATE, 1, events)
+            handleEvents(System.currentTimeMillis())
+        }
         hud.decorEdit = null
         toast(if (e.isNew && e.fromShop) Msg.BOUGHT else Msg.PLACED)
         _haptics.tryEmit(Haptic.SUCCESS)
@@ -395,6 +543,7 @@ class GameViewModel(application: Application, private val store: SaveStore) : An
             val (item, def) = hit
             hud.decorEdit = DecorEdit(item, isNew = false, fromShop = false, valid = Placement.isValid(def, V2(item.x, item.z), item.rot, item.zone, save.placed, item.uid))
             _haptics.tryEmit(Haptic.LIGHT)
+            audio.play(Sfx.PICK)
         } else if (hud.decorEdit != null && floor != null) {
             moveEdit(floor)
         }

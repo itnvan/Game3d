@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-10-18 — âm thanh + nhạc nền (sinh bằng code)
+
+- **Tự tổng hợp thay vì dùng file âm thanh**: không có asset nào có bản quyền rõ ràng, và cùng hướng với model 3D
+  sinh bằng code — APK không phình, chỉnh âm = sửa số, và chạy được trên JVM nên `AudioTest` xuất `.wav` +
+  `sfx_sheet.png` (dạng sóng + spectrogram) để soi trước khi lên máy. 40 SFX + 2 bài nhạc (ngày 96 BPM, đêm 66 BPM
+  nhịp 3/4 hộp nhạc), viết nốt bằng chuỗi `"E5:1 G5:.5 …"` để đọc/sửa được như bản nhạc.
+- **Nhạc lặp không vấp**: render thêm 4 s đuôi rồi cộng gấp vào đầu bài, reverb chạy 2 lượt (lượt 1 chỉ để làm ấm
+  bộ lọc) → mẫu cuối nối mẫu đầu liền mạch; test `songsLoopSeamlessly` khoá điều này.
+- **Mixer tự viết trên 1 `AudioTrack`** thay vì `SoundPool`: SoundPool chỉ nạp từ file/fd, và cần thêm crossfade
+  ngày/đêm 3 s, hạ nhạc khi phát jingle (lên cấp, kết quả, bàn thắng), đổi pitch theo cue (cổng chạy bộ leo
+  thang ngũ cung, bạt nhún cao dần theo combo). Track mono 48 kHz chế độ low-latency (~50 ms trên OPPO), tự
+  `pause()` khi im 1 s, tạo lại track nếu `write` trả lỗi. Nhạc render ở 24 kHz để nửa RAM/CPU.
+- **Chậm khi render trên máy**: bản đầu 10,7 s cho SFX. Một phần do đuôi bộ lọc IIR rơi vào số denormal trong ~2,5 s
+  im lặng của mỗi buffer (JVM 307 → 93 ms sau khi chỉ xử lý tới `written`). Phần lớn còn lại là do bản **debug**:
+  ART chạy app debuggable bằng interpreter chậm — bản release trên OPPO chỉ 2,8 s SFX + 1,4 s nhạc. Vì vậy có
+  `PcmCache` (PCM 16-bit trong `cacheDir`, khoá theo mtime của APK nên cài bản mới là tự render lại, không có hằng
+  VERSION để quên tăng), luồng render ở mức ưu tiên nền, mỗi âm phát được ngay khi render xong. Mở lại: 0,26 s.
+- **Bước chân theo nhịp animation** (`Animator.steps` tăng ở điểm chân duỗi xa nhất) nên khớp hình (~8 bước/s khi
+  chạy); mặt đất: gỗ trong nhà, cứng (hiên đá, lối đi, sân bóng rổ, đường chạy), còn lại là cỏ. Toạ độ lối đi
+  chép vào `Lot.PATHS`/`GARDEN_PATH` mà không sửa `WorldModel`, để nhánh làm lại đồ hoạ merge không đụng file model.
+- **Âm của toast đi qua `GameViewModel.toast()`**: dùng luôn chống lặp 1,2 s của toast, và toast chỉ phát từ VM
+  (mua/đặt/cất đồ, thiếu xu, khoá cấp) có tiếng theo cùng bảng `SoundCues.of(Msg)`. Trong 1 frame mỗi âm chỉ phát
+  1 lần; lên cấp nuốt jingle kết quả, hết vòng nuốt tiếng cổng.
+- Bạt nhún tự nảy mỗi ~0,65 s nên tiếng tiếp đất thường hạ còn 0,35 và trầm hơn, chỉ cú nảy đúng nhịp mới "boing" to.
+  Nút Nhảy/Đẩy/Ném không phát tiếng bấm (đã có tiếng riêng, bấm liên tục).
+- Loa điện thoại gần như không ra dưới ~250 Hz → thêm lớp 250–340 Hz cho tiếng sút, bóng nảy, bóng rơi cỏ, đặt đồ.
+- Cài đặt: nút Âm thanh/Nhạc nằm cùng hàng nút Đóng vì hộp thoại đã cao 267/320 dp trên OPPO. Lưu ở prefs `audio`,
+  không trong `SaveData`, nên "Chơi lại từ đầu" không bật lại tiếng người chơi đã tắt.
+- Chưa làm: audio focus (nhạc game vẫn chạy chung khi app khác đang phát nhạc), âm thanh nổi theo vị trí.
+
 ## 2026-10-17 — test trên máy thật (OPPO CPH2481, Mali-G57, density 540, font 1.15)
 
 - **Màn ngang chỉ cao ~320 dp** trên máy này (density 540 + cỡ chữ 1.15) → toàn bộ HUD thu gọn, cửa hàng trang

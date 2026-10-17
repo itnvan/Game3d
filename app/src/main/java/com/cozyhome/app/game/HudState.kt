@@ -18,6 +18,8 @@ enum class Screen { LOADING, CREATE, PLAY }
 
 enum class DecorPanel { CATALOG, PAINT }
 
+enum class HudPanel { QUESTS, ALBUM, LOGIN, EMOTES, COOK }
+
 data class PlotVisual(val crop: String?, val stage: Int, val wet: Boolean, val status: Int)
 
 data class DecorEdit(val item: PlacedItem, val isNew: Boolean, val fromShop: Boolean, val valid: Boolean)
@@ -65,6 +67,19 @@ class HudState {
     var decorZone by mutableStateOf(Zone.HOUSE)
     var decorPanel by mutableStateOf(DecorPanel.CATALOG)
     var decorEdit by mutableStateOf<DecorEdit?>(null)
+
+    var fishPhase by mutableIntStateOf(-1)
+    val fishTension = mutableFloatStateOf(0f)
+    val fishProgress = mutableFloatStateOf(0f)
+    var fishCard by mutableStateOf<WorldEvent.FishCaught?>(null)
+    var bugCard by mutableStateOf<WorldEvent.BugCaught?>(null)
+    var dishCard by mutableStateOf<WorldEvent.Cooked?>(null)
+    var panel by mutableStateOf<HudPanel?>(null)
+    var festival by mutableStateOf<com.cozyhome.game.progress.Festival?>(null)
+    var festivalNext by mutableStateOf<Pair<com.cozyhome.game.progress.Festival, Int>?>(null)
+    var questsReady by mutableIntStateOf(0)
+    var loginReady by mutableStateOf(false)
+    var albumReady by mutableIntStateOf(0)
 
     val toasts = mutableStateListOf<ToastItem>()
     val rewards = mutableStateListOf<RewardPop>()

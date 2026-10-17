@@ -120,6 +120,7 @@ class GameWorld(
         private set
     var today = 0L
         private set
+    private var lastStep = 0
 
     init {
         camera.snap(V3(pos.x, 1.1f, pos.z), 0f)
@@ -181,6 +182,10 @@ class GameWorld(
             Mode.FISH -> extra = updateFishing(input, dt, events)
         }
         animator.update(dt, vel.length, extra)
+        if (animator.steps != lastStep) {
+            lastStep = animator.steps
+            events += WorldEvent.Footstep(Lot.surfaceAt(visualPos), animator.anim == Anim.RUN)
+        }
         interaction = if (mode == Mode.FREE) findInteraction(now) else null
         updateCamera(input, dt)
         updateWalls(dt)
@@ -276,7 +281,11 @@ class GameWorld(
         when (mode) {
             Mode.SIT, Mode.SLEEP -> { standUp(); return }
             Mode.BOUNCE -> { bounceTap = 0.32f; return }
-            Mode.SWING -> { swingPush(); return }
+            Mode.SWING -> {
+                swingPush()
+                events += WorldEvent.Act(ActionKind.SWING)
+                return
+            }
             Mode.FISH -> {
                 fishEvents.clear()
                 fishing?.tap(fishEvents)
@@ -284,7 +293,10 @@ class GameWorld(
                 return
             }
             Mode.BASKETBALL -> {
-                if (basketball?.release() == true) animator.play(Anim.SHOOT_RELEASE)
+                if (basketball?.release() == true) {
+                    animator.play(Anim.SHOOT_RELEASE)
+                    events += WorldEvent.Sport(SportEvent.Released)
+                }
                 return
             }
             Mode.FREE -> Unit
@@ -295,7 +307,7 @@ class GameWorld(
             ActionKind.PLANT -> (i.target as? Target.PlotSpot)?.let { events += WorldEvent.OpenSeeds(it.index) }
             ActionKind.WATER -> (i.target as? Target.PlotSpot)?.let { t ->
                 face(Lot.PLOTS[t.index])
-                startAction(Anim.WATER, 1.1f) {
+                startAction(ActionKind.WATER, Anim.WATER, 1.1f, events) {
                     save.update { s -> s.copy(plots = s.plots.mapIndexed { idx, p -> if (idx == t.index) Garden.water(p, now) else p }) }
                     grant(0, 1, v3(Lot.PLOTS[t.index], 1.2f), events)
                     progress(QuestKind.WATER, 1, events)
@@ -303,9 +315,9 @@ class GameWorld(
             }
             ActionKind.HARVEST -> (i.target as? Target.PlotSpot)?.let { t -> harvest(t.index, now, events) }
             ActionKind.GROWING -> events += WorldEvent.Toast(Msg.GROWING, i.detail)
-            ActionKind.BASKETBALL -> startBasketball()
-            ActionKind.SOCCER -> startSoccer()
-            ActionKind.JOG -> startJog()
+            ActionKind.BASKETBALL -> { startBasketball(); events += WorldEvent.Act(i.kind) }
+            ActionKind.SOCCER -> { startSoccer(); events += WorldEvent.Act(i.kind) }
+            ActionKind.JOG -> { startJog(); events += WorldEvent.Act(i.kind) }
             ActionKind.GIFT -> gift(now, events)
             ActionKind.WATER_ALL -> waterAll(now, events)
             ActionKind.SIT, ActionKind.SLEEP, ActionKind.BOUNCE, ActionKind.SWING ->
@@ -316,6 +328,7 @@ class GameWorld(
             ActionKind.TV_ON, ActionKind.TV_OFF, ActionKind.LAMP_ON, ActionKind.LAMP_OFF ->
                 (i.target as? Target.Furniture)?.let { t ->
                     save.update { s -> s.copy(placed = s.placed.map { if (it.uid == t.uid) it.copy(on = !it.on) else it }) }
+                    events += WorldEvent.Act(i.kind)
                 }
         }
     }
@@ -337,7 +350,7 @@ class GameWorld(
             )
         }
         events += WorldEvent.Reward(-crop.seedPrice, 0, v3(Lot.PLOTS[plotIndex], 1.2f))
-        startAction(Anim.HARVEST, 0.7f) {
+        startAction(ActionKind.PLANT, Anim.HARVEST, 0.7f, events) {
             events += WorldEvent.Toast(Msg.PLANTED, cropId)
             progress(QuestKind.PLANT, 1, events)
         }
@@ -348,7 +361,7 @@ class GameWorld(
         val crop = Crops[plot.crop] ?: return
         if (Garden.status(plot, now) != PlotStatus.Ripe) return
         face(Lot.PLOTS[index])
-        startAction(Anim.HARVEST, 0.75f) {
+        startAction(ActionKind.HARVEST, Anim.HARVEST, 0.75f, events) {
             save.update { s ->
                 s.copy(
                     plots = s.plots.mapIndexed { idx, p -> if (idx == index) Garden.harvest(p) else p },
@@ -370,7 +383,7 @@ class GameWorld(
             return
         }
         face(Lot.GARDEN_TAP)
-        startAction(Anim.WATER, 1.6f) {
+        startAction(ActionKind.WATER_ALL, Anim.WATER, 1.6f, events) {
             save.update { s -> s.copy(plots = s.plots.mapIndexed { idx, p -> if (idx in thirsty) Garden.water(p, now) else p }) }
             grant(0, thirsty.size, v3(Lot.GARDEN_TAP, 1.4f), events)
             events += WorldEvent.Toast(Msg.WATERED_ALL, thirsty.size.toString())
@@ -386,7 +399,7 @@ class GameWorld(
         }
         face(Lot.MAILBOX)
         save.update { it.copy(lastGiftDay = today) }
-        startAction(Anim.WAVE, 1.0f) {
+        startAction(ActionKind.GIFT, Anim.WAVE, 1.0f, events) {
             val coins = Rules.giftCoins(Rules.level(save.current.xp))
             grant(coins, 10, v3(Lot.MAILBOX, 1.6f), events)
             events += WorldEvent.Toast(Msg.GIFT_RECEIVED, coins.toString())
@@ -407,7 +420,18 @@ class GameWorld(
         if (d.length > 0.05f) yaw = yawOf(d)
     }
 
-    private fun startAction(anim: Anim, duration: Float, done: () -> Unit) {
+    private fun startQuiet(anim: Anim, duration: Float) {
+        mode = Mode.ACTION
+        actionAnim = anim
+        actionTime = 0f
+        actionDuration = duration
+        actionDone = null
+        vel = V2.ZERO
+        animator.play(anim)
+    }
+
+    private fun startAction(kind: ActionKind, anim: Anim, duration: Float, events: MutableList<WorldEvent>, done: () -> Unit) {
+        events += WorldEvent.Act(kind)
         mode = Mode.ACTION
         actionAnim = anim
         actionTime = 0f
@@ -421,6 +445,7 @@ class GameWorld(
         val item = save.current.placed.firstOrNull { it.uid == uid } ?: return
         val def = Catalog[item.itemId] ?: return
         val seat = def.seat ?: return
+        events += WorldEvent.Act(kind)
         activeUid = uid
         vel = V2.ZERO
         yaw = Placement.yaw(item.rot)
@@ -509,6 +534,7 @@ class GameWorld(
                 bounceCombo = 0
                 bounceV = max(4.2f, abs(bounceV) * 0.7f)
             }
+            events += WorldEvent.Bounced(bounceCombo)
         }
         frame.bounceUid = activeUid
         return bounceH
@@ -852,7 +878,7 @@ class GameWorld(
         val bug = bugs.bugs.firstOrNull { it.id == id } ?: return
         face(bug.pos.xz)
         netTime = 0f
-        startAction(Anim.NET, 0.6f) {
+        startAction(ActionKind.CATCH_BUG, Anim.NET, 0.6f, events) {
             if (bugs.tryCatch(bug)) {
                 val sp = bug.species
                 val first = sp.id !in save.current.album.bugs
@@ -878,7 +904,7 @@ class GameWorld(
         stove?.let { face(V2(it.x, it.z)) }
         save.update { it.copy(pantry = Cookbook.consume(r, it.pantry)) }
         cookTime = 0f
-        startAction(Anim.COOK, 2.4f) {
+        startAction(ActionKind.COOK, Anim.COOK, 2.4f, events) {
             val first = r.id !in save.current.album.dishes
             save.update { cur -> cur.copy(album = cur.album.copy(dishes = cur.album.dishes + (r.id to ((cur.album.dishes[r.id] ?: 0) + 1)))) }
             grant(r.coins, r.xp, v3(pos, 1.8f), events)
@@ -899,7 +925,7 @@ class GameWorld(
             Emote.THINK -> Anim.THINK to 2.2f
             Emote.SAD -> Anim.SAD to 1.8f
         }
-        startAction(anim, time) {}
+        startQuiet(anim, time)
         emote = e
         emoteTime = 0f
     }

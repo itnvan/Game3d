@@ -72,6 +72,7 @@ import com.cozyhome.app.ui.theme.Sky
 import com.cozyhome.app.ui.theme.Sun
 import com.cozyhome.app.ui.theme.SunDark
 import com.cozyhome.app.ui.theme.White
+import com.cozyhome.game.audio.Sfx
 import com.cozyhome.game.game.ActionKind
 import com.cozyhome.game.game.Mode
 import com.cozyhome.game.sports.JogRace
@@ -209,8 +210,8 @@ private fun BoxScope.FreeActions(vm: GameViewModel) {
 }
 
 @Composable
-fun BigAction(emoji: String, label: String, color: Color, onClick: () -> Unit) {
-    RoundButton(emoji, color, size = 70.dp, label = label, onClick = onClick)
+fun BigAction(emoji: String, label: String, color: Color, sound: Sfx? = Sfx.TAP, onClick: () -> Unit) {
+    RoundButton(emoji, color, size = 70.dp, label = label, sound = sound, onClick = onClick)
 }
 
 @Composable
@@ -278,7 +279,7 @@ private fun BoxScope.BasketHud(vm: GameViewModel) {
         Bubble(stringResource(R.string.basket_hint), Modifier.align(Alignment.BottomCenter).alpha(0.92f))
     }
     Box(Modifier.align(Alignment.BottomEnd).padding(end = 52.dp)) {
-        BigAction("🏀", stringResource(R.string.act_shoot), Coral) { vm.primary() }
+        BigAction("🏀", stringResource(R.string.act_shoot), Coral, sound = null) { vm.primary() }
     }
     ExitButton(vm)
 }
@@ -380,7 +381,7 @@ private fun BoxScope.ToyHud(hint: String, action: String, emoji: String, color: 
     Bubble(hint, Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp))
     Column(Modifier.align(Alignment.BottomEnd), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(14.dp)) {
         RoundButton("🧍", MintLight, size = 54.dp, label = stringResource(R.string.act_stand)) { vm.world.standUp() }
-        BigAction(emoji, action, color) { vm.primary() }
+        BigAction(emoji, action, color, sound = null) { vm.primary() }
     }
     Spacer(Modifier.height(0.dp))
 }

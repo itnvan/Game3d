@@ -6,6 +6,7 @@ import com.cozyhome.game.math.V3
 import com.cozyhome.game.sports.SportEvent
 import com.cozyhome.game.sports.SportKind
 import com.cozyhome.game.state.SaveData
+import com.cozyhome.game.world.Surface
 import com.cozyhome.game.world.WallSide
 
 enum class Mode { FREE, SIT, SLEEP, ACTION, BASKETBALL, SOCCER, JOG, DECOR, BOUNCE, SWING, FISH }
@@ -50,6 +51,9 @@ sealed interface WorldEvent {
     data object OpenCook : WorldEvent
     data class Cooked(val recipe: String, val firstTime: Boolean) : WorldEvent
     data class Fish(val event: com.cozyhome.game.activities.FishEvent) : WorldEvent
+    data class Footstep(val surface: Surface, val running: Boolean) : WorldEvent
+    data class Bounced(val combo: Int) : WorldEvent
+    data class Act(val kind: ActionKind) : WorldEvent
 }
 
 class FrameInput {

@@ -18,7 +18,6 @@
 ## Chưa làm (cố ý)
 
 - Nhiều người chơi / thăm nhà nhau (cần backend). Hiện mỗi máy 1 căn nhà, lưu local.
-- Âm thanh (chưa có asset âm thanh có bản quyền rõ ràng).
 - Ads, IAP, Firebase/Crashlytics (chưa có `google-services.json`).
 - Keystore release: bản release đang ký bằng debug key.
 
@@ -55,6 +54,23 @@ Cấp độ: XP cần cho cấp L = 30·(L−1)·L. Một số món đồ/hạt 
 
 Ngày/đêm: 1 giờ game = 50 s thật (1 ngày = 20 phút), trời đổi màu sáng/hoàng hôn/đêm, có sương mù cùng màu trời.
 
+## Âm thanh (2026-10-18)
+
+Toàn bộ sinh bằng code, không có file âm thanh → không có câu hỏi bản quyền.
+
+| Phần | Ở đâu | Ghi chú |
+|---|---|---|
+| Synth (oscillator, envelope, SVF, reverb) | `core/game/audio/Dsp.kt` | PCM float, chạy được trên JVM |
+| 40 SFX | `core/game/audio/Sfx.kt` (`enum Sfx` + `SfxSynth`) | `level` = đỉnh sau chuẩn hoá, `jitter` = lệch pitch/âm lượng ngẫu nhiên khi phát |
+| Nhạc nền | `core/game/audio/Music.kt` | Ngày: 96 BPM 4/4, 16 ô nhịp (~40 s). Đêm: 66 BPM 3/4 hộp nhạc, 16 ô (~44 s). Lặp liền (gấp đuôi + reverb 2 lượt) |
+| Sự kiện → âm | `core/game/audio/SoundCues.kt` | `WorldEvent`/`SportEvent`/`ActionKind`/`Msg` → `Cue(sfx, volume, pitch)` |
+| Mixer | `app/audio/Mixer.kt` | 1 `AudioTrack` mono 48 kHz, tự trộn voice + nhạc, crossfade ngày/đêm 3 s, hạ nhạc khi phát jingle, limiter |
+| Cache | `app/audio/PcmCache.kt` | PCM 16-bit trong `cacheDir/audio_<mtime APK>_<rate>`; cài APK mới là tự render lại |
+| Bật/tắt | `GameAudio.soundOn/musicOn` → prefs `audio` | Không nằm trong `SaveData` nên "Chơi lại từ đầu" không xoá |
+
+Nghe/soi trên PC: `./gradlew :core:game:test` → `core/game/build/sounds/*.wav` + `sfx_sheet.png` (dạng sóng + spectrogram).
+Debug trên máy: logcat tag `Audio` in từng âm (`play …`) và mức ra mỗi 2 s (`out peak=…`); extra `--es sfx COIN` phát thử 1 âm.
+
 ## Reference
 
 - Plan gốc: `game_3d.zip` → `splat-explorer-plan/261016 - DEV - Splat Explorer Plan.md` (SceneView, core/game pure
@@ -74,9 +90,11 @@ Ngày/đêm: 1 giờ game = 50 s thật (1 ngày = 20 phút), trời đổi màu
 - [x] Bóng rổ, penalty, chạy bộ, bạt nhún, xích đu.
 - [x] HUD, tạo nhân vật, cài đặt, song ngữ Việt/Anh.
 - [x] Test toàn bộ trên máy thật (OPPO CPH2481): đi lại, trang trí, vườn, bóng rổ, penalty, chạy bộ, ngồi, ngủ, bạt nhún, xích đu, quà, đổi nhân vật.
-- [ ] Âm thanh, nhiều người chơi, thăm nhà bạn bè.
+- [x] Âm thanh: 40 SFX + nhạc nền ngày/đêm sinh bằng code, bật/tắt trong Cài đặt (test OPPO 2026-10-18).
+- [ ] Nhiều người chơi, thăm nhà bạn bè.
 
 ## Log tiến độ
 
 - 2026-10-17: dựng repo, spike GO trên OPPO, viết toàn bộ core + model + app, unit test core xanh.
 - 2026-10-17: test máy thật, sửa bố cục cho màn thấp, tối ưu render (~15 → ~48 FPS), sửa 8 lỗi hiển thị.
+- 2026-10-18: âm thanh thủ tục (synth trong core, mixer AudioTrack), test đủ các hoạt động trên OPPO.
