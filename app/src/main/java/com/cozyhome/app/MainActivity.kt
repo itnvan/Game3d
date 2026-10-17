@@ -1,16 +1,20 @@
 package com.cozyhome.app
 
 import android.content.Intent
+import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.cozyhome.app.audio.LocalSfx
 import com.cozyhome.app.game.GameViewModel
 import com.cozyhome.app.ui.root.AppRoot
 import com.cozyhome.app.ui.theme.GameTheme
+import com.cozyhome.game.audio.Sfx
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
@@ -19,11 +23,24 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        volumeControlStream = AudioManager.STREAM_MUSIC
         hideSystemBars()
         setContent {
-            GameTheme { AppRoot(vm) }
+            CompositionLocalProvider(LocalSfx provides vm.audio) {
+                GameTheme { AppRoot(vm) }
+            }
         }
         handleDebug(intent)
+    }
+
+    override fun onStart() {
+        super.onStart()
+        vm.audio.resume()
+    }
+
+    override fun onStop() {
+        vm.audio.pause()
+        super.onStop()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -40,6 +57,7 @@ class MainActivity : ComponentActivity() {
         if (intent.hasExtra("xp")) vm.debugXp(intent.getIntExtra("xp", 0))
         if (intent.hasExtra("hour")) vm.debugHour(intent.getFloatExtra("hour", 9f))
         if (intent.hasExtra("grow")) vm.debugGrow()
+        intent.getStringExtra("sfx")?.let { name -> Sfx.entries.firstOrNull { it.name == name }?.let { vm.audio.play(it) } }
         if (intent.hasExtra("gfx")) vm.gfxDebug = GameViewModel.GfxDebug(
             shadows = intent.getBooleanExtra("shadows", true),
             scale = intent.getFloatExtra("scale", 0.6f),

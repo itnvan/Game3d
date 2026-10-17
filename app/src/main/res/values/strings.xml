@@ -104,6 +104,10 @@
     <string name="settings_reset_confirm">Erase your house, garden and coins and start a new game?</string>
     <string name="settings_reset_yes">Erase &amp; restart</string>
     <string name="settings_about">Free test build · v%1$s</string>
+    <string name="settings_sound">Sound: %1$s</string>
+    <string name="settings_music">Music: %1$s</string>
+    <string name="on">On</string>
+    <string name="off">Off</string>
     <string name="stats_title">Your records</string>
     <string name="stats_line">Harvests %1$d · Hoops best %2$d · Goals best %3$d · Jog best %4$s</string>
     <string name="close">Close</string>

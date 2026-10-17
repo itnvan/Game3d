@@ -141,7 +141,8 @@ class PenaltyGame(private val rng: Rng, val totalKicks: Int = 5) {
 
     private fun stepBall(dt: Float, events: MutableList<SportEvent>) {
         val prev = ball.pos
-        ball.integrate(dt, drag = if (inNet) 3.5f else 0.08f, restitution = 0.5f, friction = 0.82f)
+        val impact = ball.integrate(dt, drag = if (inNet) 3.5f else 0.08f, restitution = 0.5f, friction = 0.82f)
+        if (impact > 0f) events += SportEvent.Bounce(SportKind.SOCCER, impact)
         if (!resolved) {
             collidePosts(events)
             collideKeeper(prev, events)

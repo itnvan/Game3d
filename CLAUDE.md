@@ -24,6 +24,9 @@ nối logic với SceneView. Chi tiết thiết kế: `docs/design.md`. Lịch s
   transform vào node đã destroy = crash native.
 - Dữ liệu lưu: `SaveData` (JSON `filesDir/save.json`, ghi nguyên tử, debounce 700 ms + flush ON_STOP). Đổi field:
   luôn có default, không đổi tên field đã phát hành.
+- **Âm thanh sinh bằng code** (`core/game/audio` → `app/audio/Mixer`), không có file âm thanh. Tiếng mới: thêm
+  `Sfx` + công thức trong `SfxSynth`, nối sự kiện ở `SoundCues` (có test trong `AudioTest`), nghe lại
+  `core/game/build/sounds/*.wav`. Nếu buộc phải dùng file thì chỉ CC0 và ghi nguồn trong `docs/design.md`.
 
 ## Bẫy đã biết
 
@@ -34,3 +37,8 @@ nối logic với SceneView. Chi tiết thiết kế: `docs/design.md`. Lịch s
 4. Máy test OPPO CPH2481 (Mali-G57) khoá màn hình bằng vân tay; `pm clear` bị chặn → xoá save bằng
    `adb shell run-as com.cozyhome.game rm -f files/save.json`.
 5. Comment trong code: không narration; chỉ 1 dòng cho bẫy không đọc được từ code.
+6. Bản **debug** render âm thanh chậm ~4–6× bản release (ART chạy app debuggable bằng interpreter chậm): lần mở đầu
+   sau mỗi lần cài, SFX có sau ~10 s, nhạc sau ~18 s; các lần sau đọc `PcmCache`. Đó không phải lỗi.
+7. `Pcm` chỉ xử lý tới `written`: chạy bộ lọc IIR qua đoạn im lặng làm đuôi rơi vào số denormal, chậm gấp nhiều lần.
+8. `Lot.PATHS`/`GARDEN_PATH` (chọn tiếng bước chân) là bản chép toạ độ lối đi trong `WorldModel.paths()` /
+   `gardenGround()`: dời lối đi thì sửa cả hai.

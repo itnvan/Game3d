@@ -188,8 +188,9 @@ fun LevelUpDialog(level: Int, onDismiss: () -> Unit) {
 @Composable
 fun SettingsDialog(vm: GameViewModel, onDismiss: () -> Unit) {
     var confirmReset by remember { mutableStateOf(false) }
+    val audio = vm.audio
     Overlay(onDismiss) {
-        Panel(Modifier.width(440.dp)) {
+        Panel(Modifier.width(520.dp)) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.settings), color = Ink, fontWeight = FontWeight.Black, fontSize = 22.sp)
                 val st = vm.save.stats
@@ -212,8 +213,14 @@ fun SettingsDialog(vm: GameViewModel, onDismiss: () -> Unit) {
                         ChunkyButton(stringResource(R.string.settings_reset_yes), Bad) { onDismiss(); vm.resetGame() }
                     }
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    val sound = stringResource(if (audio.soundOn) R.string.on else R.string.off)
+                    val music = stringResource(if (audio.musicOn) R.string.on else R.string.off)
+                    ChunkyButton(stringResource(R.string.settings_sound, sound), if (audio.soundOn) Sky else InkSoft, emoji = if (audio.soundOn) "🔊" else "🔇", height = 40.dp, fontSize = 13.sp) { audio.toggleSound() }
+                    ChunkyButton(stringResource(R.string.settings_music, music), if (audio.musicOn) Lilac else InkSoft, emoji = "🎵", height = 40.dp, fontSize = 13.sp) { audio.toggleMusic() }
+                    ChunkyButton(stringResource(R.string.close), Mint, height = 40.dp, fontSize = 13.sp) { onDismiss() }
+                }
                 Text(stringResource(R.string.settings_about, BuildConfig.VERSION_NAME), color = InkSoft, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                ChunkyButton(stringResource(R.string.close), Mint, height = 40.dp, fontSize = 13.sp) { onDismiss() }
             }
         }
     }

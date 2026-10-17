@@ -26,16 +26,21 @@ class Ball(val radius: Float) {
         bounces = 0
     }
 
-    fun integrate(dt: Float, drag: Float, restitution: Float, friction: Float) {
+    fun integrate(dt: Float, drag: Float, restitution: Float, friction: Float): Float {
+        var impact = 0f
         vel = V3(vel.x * (1f - drag * dt), vel.y - GRAVITY * dt, vel.z * (1f - drag * dt))
         pos += vel * dt
         if (pos.y < radius) {
             pos = V3(pos.x, radius, pos.z)
-            if (vel.y < -0.6f) bounces++
+            if (vel.y < -0.6f) {
+                bounces++
+                impact = -vel.y
+            }
             vel = if (vel.y < -0.6f) V3(vel.x * friction, -vel.y * restitution, vel.z * friction)
             else V3(vel.x * (1f - 2.2f * dt), 0f, vel.z * (1f - 2.2f * dt))
         }
         spin += vel.length * dt / radius
+        return impact
     }
 
     val isResting: Boolean get() = pos.y <= radius + 1e-3f && vel.length < 0.25f

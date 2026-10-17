@@ -5,6 +5,8 @@ import com.cozyhome.game.math.V3
 
 enum class WallSide { NORTH, SOUTH, WEST, EAST }
 
+enum class Surface { GRASS, WOOD, HARD }
+
 data class Opening(val side: WallSide, val center: Float, val width: Float, val bottom: Float, val top: Float)
 
 data class TreeSpot(val pos: V2, val scale: Float, val seed: Int, val kind: Int)
@@ -41,6 +43,7 @@ object Lot {
         for (z in zs) for (x in xs) add(V2(x, z))
     }
     val GARDEN_TAP = V2(18.7f, -7.1f)
+    val GARDEN_PATH = Rect(GARDEN.minX + 0.4f, -8.4f, GARDEN.maxX - 0.4f, -6.3f)
 
     val COURT = Rect(-20f, -17f, -10f, -7f)
     val RIM = V3(-15f, 3.05f, -15.2f)
@@ -67,6 +70,13 @@ object Lot {
     val GATE = V2(0f, 20f)
     val SPAWN = V2(0f, -3.6f)
     const val SPAWN_YAW = 180f
+
+    val PATHS = listOf(
+        Rect(-0.85f, -4.85f, 0.85f, -1.9f),
+        Rect(-0.85f, 17f, 0.85f, 19.9f),
+        Rect(0.85f, -4.4f, 10.6f, -3.4f),
+        Rect(9.2f, -6.0f, 10.6f, -3.4f),
+    )
 
     val FLOWER_BEDS = listOf(Rect(-5.2f, -5.4f, -2.2f, -4.6f), Rect(2.2f, -5.4f, 5.2f, -4.6f))
     val BENCH_BY_POND = V2(15.5f, 11.4f)
@@ -121,4 +131,10 @@ object Lot {
     }
 
     fun isInsideHouse(p: V2) = p in ROOM
+
+    fun surfaceAt(p: V2): Surface = when {
+        p in ROOM -> Surface.WOOD
+        p in PORCH || p in COURT || p in GARDEN_PATH || PATHS.any { p in it } || TRACK.isOnTrack(p) -> Surface.HARD
+        else -> Surface.GRASS
+    }
 }

@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.cozyhome.app.audio.LocalSfx
 import com.cozyhome.app.ui.theme.Cream
 import com.cozyhome.app.ui.theme.Ink
 import com.cozyhome.app.ui.theme.Shadow
@@ -45,17 +46,22 @@ import com.cozyhome.app.ui.theme.Sun
 import com.cozyhome.app.ui.theme.SunDark
 import com.cozyhome.app.ui.theme.SunLight
 import com.cozyhome.app.ui.theme.White
+import com.cozyhome.game.audio.Sfx
 
 fun Color.deeper(f: Float = 0.22f) = Color(red * (1 - f), green * (1 - f), blue * (1 - f), alpha)
 
 @Composable
-fun Modifier.bouncyClick(enabled: Boolean = true, onClick: () -> Unit): Modifier {
+fun Modifier.bouncyClick(enabled: Boolean = true, sound: Sfx? = Sfx.TAP, onClick: () -> Unit): Modifier {
+    val sfx = LocalSfx.current
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val s by animateFloatAsState(if (pressed) 0.92f else 1f, spring(dampingRatio = 0.45f, stiffness = 700f), label = "press")
     return this
         .scale(s)
-        .clickable(interactionSource = source, indication = null, enabled = enabled, onClick = onClick)
+        .clickable(interactionSource = source, indication = null, enabled = enabled) {
+            sound?.let { sfx.play(it) }
+            onClick()
+        }
 }
 
 @Composable
@@ -74,7 +80,7 @@ fun ChunkyButton(
     val base = if (enabled) color else color.copy(alpha = 0.45f)
     Box(
         modifier
-            .bouncyClick(enabled, onClick)
+            .bouncyClick(enabled, onClick = onClick)
             .shadow(6.dp, shape, ambientColor = Shadow, spotColor = Shadow)
             .background(base.deeper(), shape)
             .padding(bottom = 4.dp)
@@ -98,12 +104,13 @@ fun RoundButton(
     size: Dp = 52.dp,
     label: String? = null,
     enabled: Boolean = true,
+    sound: Sfx? = Sfx.TAP,
     onClick: () -> Unit,
 ) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier
-                .bouncyClick(enabled, onClick)
+                .bouncyClick(enabled, sound, onClick)
                 .shadow(6.dp, CircleShape, ambientColor = Shadow, spotColor = Shadow)
                 .background(color.deeper(), CircleShape)
                 .padding(bottom = 4.dp)

@@ -6,7 +6,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.cozyhome.app.audio.GameAudio
 import com.cozyhome.app.data.SaveStore
+import com.cozyhome.game.audio.Sfx
+import com.cozyhome.game.audio.SoundCues
 import com.cozyhome.game.decor.Catalog
 import com.cozyhome.game.decor.ItemDef
 import com.cozyhome.game.decor.Layer
@@ -42,7 +45,7 @@ import java.util.TimeZone
 
 enum class Haptic { LIGHT, SUCCESS, FAIL }
 
-class GameViewModel(application: Application, private val store: SaveStore) : AndroidViewModel(application) {
+class GameViewModel(application: Application, private val store: SaveStore, val audio: GameAudio) : AndroidViewModel(application) {
 
     var save by mutableStateOf(SaveData())
         private set
@@ -108,7 +111,9 @@ class GameViewModel(application: Application, private val store: SaveStore) : An
         hud.mode = world.mode
         hud.interaction = world.interaction
         hud.inside = world.frame.inside
-        hud.hourQuarter = (DayClock.hour(now, save.clockOffsetMs) * 4f).toInt()
+        val hour = DayClock.hour(now, save.clockOffsetMs)
+        hud.hourQuarter = (hour * 4f).toInt()
+        audio.setNight(DayClock.isNight(hour))
         plotTimer -= dt
         if (plotTimer <= 0f) {
             plotTimer = 0.5f
@@ -179,13 +184,16 @@ class GameViewModel(application: Application, private val store: SaveStore) : An
                     SportEvent.BasketMiss, SportEvent.ShotMissed -> _haptics.tryEmit(Haptic.FAIL)
                     else -> Unit
                 }
+                is WorldEvent.Footstep, is WorldEvent.Bounced, is WorldEvent.Act -> Unit
             }
         }
         if (events.any { it is WorldEvent.Reward && it.coins > 0 }) _haptics.tryEmit(Haptic.LIGHT)
+        audio.play(SoundCues.collect(events))
     }
 
     private fun toast(msg: Msg, arg: String = "", now: Long = System.currentTimeMillis()) {
         if (hud.toasts.lastOrNull()?.let { it.msg == msg && it.arg == arg && now - it.bornAt < 1200 } == true) return
+        audio.play(SoundCues.of(msg))
         hud.toasts += ToastItem(idSeq++, msg, arg, now)
         while (hud.toasts.size > 3) hud.toasts.removeAt(0)
     }
@@ -299,6 +307,7 @@ class GameViewModel(application: Application, private val store: SaveStore) : An
         val item = PlacedItem(save.nextUid, def.id, spot.x, spot.z, 0, 0, zone)
         hud.decorEdit = DecorEdit(item, isNew = true, fromShop = owned <= 0, valid = true)
         _haptics.tryEmit(Haptic.LIGHT)
+        audio.play(Sfx.PICK)
     }
 
     private fun withEdit(transform: (PlacedItem, ItemDef) -> PlacedItem) {
@@ -395,6 +404,7 @@ class GameViewModel(application: Application, private val store: SaveStore) : An
             val (item, def) = hit
             hud.decorEdit = DecorEdit(item, isNew = false, fromShop = false, valid = Placement.isValid(def, V2(item.x, item.z), item.rot, item.zone, save.placed, item.uid))
             _haptics.tryEmit(Haptic.LIGHT)
+            audio.play(Sfx.PICK)
         } else if (hud.decorEdit != null && floor != null) {
             moveEdit(floor)
         }

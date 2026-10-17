@@ -3,6 +3,7 @@ package com.cozyhome.game.anim
 import com.cozyhome.game.math.damp
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.sin
 
 enum class Anim { IDLE, WALK, RUN, SIT, SLEEP, WATER, HARVEST, SHOOT_AIM, SHOOT_RELEASE, KICK, CHEER, SAD, WAVE, BOUNCE, SWING, KEEPER }
@@ -52,6 +53,8 @@ class Animator {
     private var cycle = 0f
     private var clock = 0f
     private var stateTime = 0f
+    var steps = 0
+        private set
     var anim = Anim.IDLE
         private set
 
@@ -77,7 +80,9 @@ class Animator {
             }
             Anim.WALK, Anim.RUN -> {
                 val run = anim == Anim.RUN
+                val stride = floor(cycle + 0.5f)
                 cycle += dt * speed * (if (run) 1.55f else 2.3f)
+                if (floor(cycle + 0.5f) != stride) steps++
                 val s = sin(cycle * PI.toFloat())
                 val amp = if (run) 42f else 30f
                 target.legLFwd = s * amp

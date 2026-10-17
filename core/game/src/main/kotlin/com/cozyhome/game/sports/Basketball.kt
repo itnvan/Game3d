@@ -124,7 +124,8 @@ class BasketballGame(private val rng: Rng, val totalShots: Int = 10) {
 
     private fun stepFlight(dt: Float, events: MutableList<SportEvent>) {
         val prev = ball.pos
-        ball.integrate(dt, drag = 0.04f, restitution = 0.62f, friction = 0.78f)
+        val impact = ball.integrate(dt, drag = 0.04f, restitution = 0.62f, friction = 0.78f)
+        if (impact > 0f) events += SportEvent.Bounce(SportKind.BASKETBALL, impact)
         collideRim(events)
         collideBoard(events)
         if (!scored && prev.y > Lot.RIM.y && ball.pos.y <= Lot.RIM.y) {

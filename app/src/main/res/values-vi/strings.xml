@@ -104,6 +104,10 @@
     <string name="settings_reset_confirm">Xóa nhà, vườn và xu để bắt đầu game mới?</string>
     <string name="settings_reset_yes">Xóa &amp; chơi lại</string>
     <string name="settings_about">Bản thử nghiệm miễn phí · v%1$s</string>
+    <string name="settings_sound">Âm thanh: %1$s</string>
+    <string name="settings_music">Nhạc: %1$s</string>
+    <string name="on">Bật</string>
+    <string name="off">Tắt</string>
     <string name="stats_title">Thành tích</string>
     <string name="stats_line">Thu hoạch %1$d · Ném rổ %2$d · Penalty %3$d · Chạy %4$s</string>
     <string name="close">Đóng</string>
