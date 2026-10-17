@@ -110,7 +110,7 @@ fun SeedPicker(vm: GameViewModel) {
                         ) {
                             Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
                                 thumb?.let { Image(it, null, Modifier.size(40.dp)) }
-                                if (locked) Text("🔒", fontSize = 22.sp)
+                                if (locked) com.cozyhome.app.ui.components.GameIcon(com.cozyhome.app.ui.components.Ico.LOCK, 24.dp, Ink.copy(alpha = 0.7f))
                             }
                             Text(stringResource(cropName(crop.id)), color = Ink, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp, maxLines = 1)
                             if (locked) {
@@ -176,7 +176,7 @@ fun LevelUpDialog(level: Int, onDismiss: () -> Unit) {
     Overlay(onDismiss) {
         Panel(Modifier.width(380.dp), color = MintLight) {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("🎉", fontSize = 52.sp)
+                com.cozyhome.app.ui.components.GameIcon(com.cozyhome.app.ui.components.Ico.PARTY, 56.dp, Coral)
                 Text(stringResource(R.string.level_up_title, level), color = Ink, fontWeight = FontWeight.Black, fontSize = 26.sp)
                 Text(stringResource(R.string.level_up_body), color = Ink, fontWeight = FontWeight.Bold, fontSize = 14.sp, textAlign = TextAlign.Center)
                 ChunkyButton(stringResource(R.string.ok), Sun, textColor = Ink, emoji = "✨") { onDismiss() }

@@ -252,6 +252,8 @@ class GameViewModel(application: Application, private val store: SaveStore, val 
 
     fun debugFestival(name: String) = access.update { it.copy(festivalDebug = name) }
 
+    fun debugPantry() = access.update { s -> s.copy(pantry = com.cozyhome.game.garden.Crops.all.associate { it.id to 6 }, tokens = s.tokens + 20) }
+
     private fun refreshPlots(now: Long) {
         val visuals = save.plots.map { p ->
             val settled = Garden.settle(p, now)

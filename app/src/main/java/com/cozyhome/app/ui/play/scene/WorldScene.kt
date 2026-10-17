@@ -182,6 +182,18 @@ private fun SceneScope.FurnitureNode(item: PlacedItem, refs: SceneRefs, lifted: 
     ) {
         model?.let { Part(it, shadow = def.layer != Layer.FLOOR) }
         if (def.use == Use.SWING) SwingSeat(uid, item.variant, refs)
+        if (def.use == Use.LAMP && item.on && !lifted) {
+            LightNode(
+                type = com.google.android.filament.LightManager.Type.POINT,
+                intensity = if (item.zone == Zone.HOUSE) 9_000f else 20_000f,
+                position = Position(0f, def.height * 0.85f, 0f),
+                apply = {
+                    color(1f, 0.82f, 0.6f)
+                    falloff(if (item.zone == Zone.HOUSE) 5.5f else 8f)
+                    castShadows(false)
+                },
+            )
+        }
     }
 }
 

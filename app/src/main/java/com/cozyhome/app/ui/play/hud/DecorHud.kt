@@ -148,7 +148,7 @@ private fun EditTools(vm: GameViewModel) {
                     CoinIcon(14.dp)
                     Text(def.price.toString(), color = Ink, fontWeight = FontWeight.Black, fontSize = 13.sp)
                 }
-                if (!edit.valid) Text("⛔", fontSize = 13.sp)
+                if (!edit.valid) com.cozyhome.app.ui.components.GameIcon(com.cozyhome.app.ui.components.Ico.BLOCK, 14.dp, Bad)
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Bottom) {
@@ -234,7 +234,7 @@ private fun ItemCard(vm: GameViewModel, def: ItemDef) {
         Box(Modifier.size(52.dp), contentAlignment = Alignment.Center) {
             if (thumb != null) Image(thumb, null, Modifier.size(52.dp).alpha(if (locked) 0.4f else 1f))
             else Box(Modifier.size(36.dp).background(Ink.copy(alpha = 0.06f), CircleShape))
-            if (locked) Text("🔒", fontSize = 22.sp)
+            if (locked) com.cozyhome.app.ui.components.GameIcon(com.cozyhome.app.ui.components.Ico.LOCK, 24.dp, Ink.copy(alpha = 0.7f))
         }
         Text(stringResource(itemName(def.id)), color = Ink, fontWeight = FontWeight.Bold, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
         when {

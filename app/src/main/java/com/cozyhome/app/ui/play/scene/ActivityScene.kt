@@ -190,19 +190,21 @@ fun applyActivities(act: ActivityRefs, world: GameWorld, festival: Festival?, dt
         }
     }
     val used = HashMap<String, Int>()
-    for (list in act.bugNodes.values) for (n in list) if (n?.isVisible == true) n.isVisible = false
+    val shown = HashSet<Node>()
     for (b in f.bugs) {
         val list = act.bugNodes[b.species] ?: continue
         val idx = used.getOrDefault(b.species, 0)
         if (idx >= list.size) continue
         used[b.species] = idx + 1
         val n = list[idx] ?: continue
-        n.isVisible = true
+        shown += n
+        if (!n.isVisible) n.isVisible = true
         n.position = Position(b.pos.x, b.pos.y, b.pos.z)
         n.rotation = Rotation(y = b.heading)
         val sp = BugDex[b.species]
         n.scale = if (sp?.flyer == true) Scale(0.35f + 0.65f * kotlin.math.abs(sin(b.flap)), 1f, 1f) else Scale(1f)
     }
+    for (list in act.bugNodes.values) for (n in list) if (n != null && n.isVisible && n !in shown) n.isVisible = false
     val night = world.hour >= 19.5f || world.hour < 1f
     act.fireworkClock -= dt
     for (k in act.fireworks.indices) {
