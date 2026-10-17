@@ -56,8 +56,8 @@ object DayClock {
         val dir = V3(-azimuth * 0.75f - 0.2f, -elevation, -0.55f).normalized()
         val warm = max(dawn, dusk)
         val sunColor = Rgb(1f, 0.96f, 0.88f).mix(rgb(0xFFB37A), warm * 0.8f).mix(rgb(0x9DB4FF), (1f - dayness) * 0.8f)
-        val intensity = 11_000f + 23_000f * dayness * (1f - warm * 0.3f)
-        val ambient = 0.58f + 0.42f * dayness
+        val intensity = 2_600f + 40_000f * dayness * (1f - warm * 0.35f)
+        val ambient = 0.14f + 0.86f * dayness
         return SkyState(hour, sky, sunColor, intensity, dir, ambient, 1f - dayness)
     }
 

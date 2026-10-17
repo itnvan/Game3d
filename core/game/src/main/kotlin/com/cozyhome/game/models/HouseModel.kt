@@ -7,14 +7,18 @@ import com.cozyhome.game.mesh.MeshBuilder
 import com.cozyhome.game.mesh.Rgb
 import com.cozyhome.game.mesh.mesh
 import com.cozyhome.game.mesh.rgb
+import kotlin.math.PI
+import kotlin.math.sin
 import com.cozyhome.game.world.Lot
 import com.cozyhome.game.world.Opening
 import com.cozyhome.game.world.WallSide
 
 object HouseModel {
-    private val EXTERIOR = rgb(0xFFFDF6)
-    private val TRIM = rgb(0xFFFFFF)
-    private val BASE = rgb(0xE9D9C4)
+    private val EXTERIOR = rgb(0xF6EFE3)
+    private val TRIM = rgb(0xFBF8F2)
+    private val BASE = rgb(0xB9B1A3)
+    private val ROOF_TILE = rgb(0xC0613F)
+    private val SOFFIT = rgb(0x9A7356)
     private const val ROOF_Y = Lot.WALL_H
     private const val RIDGE = 2.3f
     private const val OVERHANG = 0.55f
@@ -23,41 +27,11 @@ object HouseModel {
     fun floor(style: Int): Mesh = mesh {
         val r = Lot.ROOM
         val (a, b) = Palette.FLOORS[style.mod(Palette.FLOORS.size)]
-        mat = Mat.MATTE
-        block(r.minX - 0.45f, -0.35f, r.minZ - 0.45f, r.maxX + 0.45f, 0.0f, r.maxZ + 0.45f, Palette.STONE)
+        withMat(Mat.STONE) { block(r.minX - 0.45f, -0.35f, r.minZ - 0.45f, r.maxX + 0.45f, 0.0f, r.maxZ + 0.45f, BASE) }
         if (style.mod(Palette.FLOORS.size) <= 1) {
-            mat = Mat(roughness = 0.6f)
-            val plank = 0.3f
-            var x = r.minX
-            var i = 0
-            while (x < r.maxX - 1e-3f) {
-                val x1 = minOf(x + plank, r.maxX)
-                val c = if (i % 2 == 0) a else b
-                val split = r.minZ + ((i * 37) % 7 + 2) * 0.55f
-                block(x + 0.006f, 0f, r.minZ, x1 - 0.006f, 0.04f, split - 0.01f, c)
-                block(x + 0.006f, 0f, split + 0.01f, x1 - 0.006f, 0.04f, r.maxZ, c.mix(a, 0.3f))
-                block(x, 0f, r.minZ, x1, 0.032f, r.maxZ, a.darker(0.18f))
-                x = x1
-                i++
-            }
+            withMat(Mat.PLANKS) { block(r.minX, 0f, r.minZ, r.maxX, 0.04f, r.maxZ, a.mix(b, 0.3f)) }
         } else {
-            mat = Mat(roughness = 0.4f)
-            block(r.minX, 0f, r.minZ, r.maxX, 0.03f, r.maxZ, b.darker(0.06f))
-            val tile = 0.5f
-            var ix = 0
-            var x = r.minX
-            while (x < r.maxX - 1e-3f) {
-                var z = r.minZ
-                var iz = 0
-                while (z < r.maxZ - 1e-3f) {
-                    val c = if ((ix + iz) % 2 == 0) a else b
-                    block(x + 0.012f, 0.03f, z + 0.012f, x + tile - 0.012f, 0.04f, z + tile - 0.012f, c)
-                    z += tile
-                    iz++
-                }
-                x += tile
-                ix++
-            }
+            withMat(Mat.TILE) { block(r.minX, 0f, r.minZ, r.maxX, 0.04f, r.maxZ, a) }
         }
     }
 
@@ -90,7 +64,7 @@ object HouseModel {
                 if (!cut || o.bottom < h) opening(side, o, cut, h)
             }
         }
-        mat = Mat(roughness = 0.6f)
+        mat = Mat.PAINTED_WOOD
         val solidRuns = ArrayList<Pair<Float, Float>>()
         for ((a, b, o) in intervals) {
             if (o != null && o.bottom <= 0f) continue
@@ -99,9 +73,9 @@ object HouseModel {
             else solidRuns += a to b
         }
         for ((a, b) in solidRuns) {
-            along(side, a, b, 0f, 0.14f, 0.03f, true, Palette.WOOD_LIGHT)
-            along(side, a, b, 0f, 0.3f, 0.04f, false, BASE)
-            if (cut) along(side, a, b, h - 0.03f, h + 0.03f, t + 0.06f, null, Palette.WOOD)
+            withMat(Mat.WOOD) { along(side, a, b, 0f, 0.14f, 0.03f, true, Palette.WOOD_LIGHT.darker(0.1f)) }
+            withMat(Mat.STONE) { along(side, a, b, 0f, 0.38f, 0.05f, false, BASE) }
+            if (cut) withMat(Mat.WOOD) { along(side, a, b, h - 0.03f, h + 0.03f, t + 0.06f, null, Palette.WOOD) }
         }
         if (!cut) along(side, start, end, h - 0.12f, h, 0.03f, true, TRIM)
         if (!cut && side == WallSide.SOUTH) {
@@ -116,20 +90,20 @@ object HouseModel {
         val t = Lot.WALL_T
         when (side) {
             WallSide.NORTH -> {
-                block(a, y0, r.minZ - t / 2f, b, y1, r.minZ, inner)
-                block(a, y0, r.minZ - t, b, y1, r.minZ - t / 2f, EXTERIOR)
+                withMat(Mat.PLASTER) { block(a, y0, r.minZ - t / 2f, b, y1, r.minZ, inner) }
+                withMat(Mat.PLASTER) { block(a, y0, r.minZ - t, b, y1, r.minZ - t / 2f, EXTERIOR) }
             }
             WallSide.SOUTH -> {
-                block(a, y0, r.maxZ, b, y1, r.maxZ + t / 2f, inner)
-                block(a, y0, r.maxZ + t / 2f, b, y1, r.maxZ + t, EXTERIOR)
+                withMat(Mat.PLASTER) { block(a, y0, r.maxZ, b, y1, r.maxZ + t / 2f, inner) }
+                withMat(Mat.PLASTER) { block(a, y0, r.maxZ + t / 2f, b, y1, r.maxZ + t, EXTERIOR) }
             }
             WallSide.WEST -> {
-                block(r.minX - t / 2f, y0, a, r.minX, y1, b, inner)
-                block(r.minX - t, y0, a, r.minX - t / 2f, y1, b, EXTERIOR)
+                withMat(Mat.PLASTER) { block(r.minX - t / 2f, y0, a, r.minX, y1, b, inner) }
+                withMat(Mat.PLASTER) { block(r.minX - t, y0, a, r.minX - t / 2f, y1, b, EXTERIOR) }
             }
             WallSide.EAST -> {
-                block(r.maxX, y0, a, r.maxX + t / 2f, y1, b, inner)
-                block(r.maxX + t / 2f, y0, a, r.maxX + t, y1, b, EXTERIOR)
+                withMat(Mat.PLASTER) { block(r.maxX, y0, a, r.maxX + t / 2f, y1, b, inner) }
+                withMat(Mat.PLASTER) { block(r.maxX + t / 2f, y0, a, r.maxX + t, y1, b, EXTERIOR) }
             }
         }
     }
@@ -167,7 +141,7 @@ object HouseModel {
                 WallSide.EAST -> block(r.maxX - out, y0, u0, r.maxX + t + out, y1, u1, TRIM)
             }
         }
-        mat = Mat(roughness = 0.5f)
+        mat = Mat.PAINTED_WOOD
         frame(a - f, a, o.bottom, top, 0.02f)
         frame(b, b + f, o.bottom, top, 0.02f)
         if (!cut && o.top <= h) frame(a - f, b + f, o.top, o.top + f, 0.02f)
@@ -185,7 +159,59 @@ object HouseModel {
                     }
                 }
                 flowerBox(side, a, b, o.bottom)
+                curtains(side, a, b, o.bottom, o.top)
             }
+        }
+    }
+
+    private fun place(side: WallSide, along: Float, y: Float, inward: Float): V3 {
+        val r = Lot.ROOM
+        return when (side) {
+            WallSide.NORTH -> V3(along, y, r.minZ + inward)
+            WallSide.SOUTH -> V3(along, y, r.maxZ - inward)
+            WallSide.WEST -> V3(r.minX + inward, y, along)
+            WallSide.EAST -> V3(r.maxX - inward, y, along)
+        }
+    }
+
+    private fun MeshBuilder.curtains(side: WallSide, a: Float, b: Float, bottom: Float, top: Float) {
+        val linen = rgb(0xEEE7DB)
+        val y0 = maxOf(0.12f, bottom - 0.25f)
+        val y1 = top + 0.14f
+        val inward = when (side) {
+            WallSide.NORTH -> V3(0f, 0f, 1f)
+            WallSide.SOUTH -> V3(0f, 0f, -1f)
+            WallSide.WEST -> V3(1f, 0f, 0f)
+            WallSide.EAST -> V3(-1f, 0f, 0f)
+        }
+        withMat(Mat.FABRIC.copy(doubleSided = true)) {
+            for (s in listOf(-1f, 1f)) {
+                val c0 = if (s < 0) a - 0.22f else b - 0.12f
+                val w = 0.34f
+                val cols = 14
+                val rows = 3
+                val ids = Array(rows + 1) { IntArray(cols + 1) }
+                for (j in 0..rows) {
+                    val y = y1 - (y1 - y0) * j / rows
+                    val gather = 1f - 0.25f * (j / rows.toFloat()) * (1f - j / rows.toFloat()) * 4f * 0.5f
+                    for (i in 0..cols) {
+                        val u = i / cols.toFloat()
+                        val along = c0 + u * w * gather + (if (s < 0) 0f else (1f - gather) * w)
+                        val fold = 0.035f * sin(u * PI.toFloat() * 7f)
+                        val p = place(side, along, y, 0.09f + fold)
+                        ids[j][i] = vertexPublic(p, inward, linen.darker(0.06f * (0.5f + 0.5f * sin(u * PI.toFloat() * 7f + 1.2f))))
+                    }
+                }
+                for (j in 0 until rows) for (i in 0 until cols) {
+                    triPublic(ids[j][i], ids[j + 1][i], ids[j + 1][i + 1])
+                    triPublic(ids[j][i], ids[j + 1][i + 1], ids[j][i + 1])
+                }
+            }
+        }
+        withMat(Mat(roughness = 0.35f, metallic = 0.9f)) {
+            val p0 = place(side, a - 0.3f, y1 + 0.03f, 0.1f)
+            val p1 = place(side, b + 0.3f, y1 + 0.03f, 0.1f)
+            tube(listOf(p0, p1), { 0.012f }, rgb(0xC9A15A), sides = 8, caps = true)
         }
     }
 
@@ -201,15 +227,13 @@ object HouseModel {
                 WallSide.EAST -> { translate(r.maxX + t + 0.16f, y - 0.32f, (a + b) / 2f); rotateY(90f) }
             }
             val w = (b - a) + 0.1f
-            mat = Mat(roughness = 0.7f)
-            block(-w / 2f, 0f, -0.14f, w / 2f, 0.24f, 0.14f, Palette.WOOD)
-            block(-w / 2f + 0.03f, 0.2f, -0.11f, w / 2f - 0.03f, 0.25f, 0.11f, Palette.SOIL)
-            mat = Mat.MATTE
+            withMat(Mat.DECK) { block(-w / 2f, 0f, -0.14f, w / 2f, 0.24f, 0.14f, rgb(0x9C6E4A)) }
+            withMat(Mat.SOIL) { block(-w / 2f + 0.03f, 0.2f, -0.11f, w / 2f - 0.03f, 0.25f, 0.11f, rgb(0x5B4330)) }
             var x = -w / 2f + 0.14f
             var i = 0
             while (x < w / 2f - 0.1f) {
-                blob(x, 0.32f, 0f, 0.1f, 0.08f, 0.1f, Palette.LEAF, 0, 0.1f, i + 40)
-                sphere(x + 0.02f, 0.39f, 0.04f, 0.055f, colors[i % colors.size], rings = 4, segments = 8)
+                withMat(Mat.LEAF) { puff(x, 0.3f, 0f, 0.11f, 0.08f, 0.1f, rgb(0x5E9B3A), subdivisions = 1, wobble = 0.15f, seed = i + 40) }
+                withMat(Mat.SOFT) { sphere(x + 0.02f, 0.37f, 0.05f, 0.05f, colors[i % colors.size], rings = 4, segments = 8) }
                 x += 0.24f
                 i++
             }
@@ -226,35 +250,32 @@ object HouseModel {
         val zm = (r.minZ + r.maxZ) / 2f
         val y0 = ROOF_Y - 0.12f
         val y1 = ROOF_Y + RIDGE
-        mat = Mat(roughness = 0.75f)
-        val rows = 7
+        val roofPaint = com.cozyhome.game.mesh.Paint { _, y, _ -> ROOF_TILE.mix(ROOF_TILE.darker(0.25f), 1f - ((y - y0) / (y1 - y0)).coerceIn(0f, 1f) * 0.6f) }
         for (side in 0..1) {
             val ze = if (side == 0) z0 else z1
-            for (k in 0 until rows) {
-                val t0 = k / rows.toFloat()
-                val t1 = (k + 1) / rows.toFloat()
-                val za = ze + (zm - ze) * t0
-                val zb = ze + (zm - ze) * t1
-                val ya = y0 + (y1 - y0) * t0
-                val yb = y0 + (y1 - y0) * t1
-                val c = if (k % 2 == 0) Palette.ROOF else Palette.ROOF.mix(Palette.ROOF_DARK, 0.45f)
-                val lift = 0.05f
+            val lift = 0.05f
+            withMat(Mat.ROOF) {
+                if (side == 1) quad(V3(x0, y0 + lift, ze), V3(x1, y0 + lift, ze), V3(x1, y1 + lift, zm), V3(x0, y1 + lift, zm), roofPaint)
+                else quad(V3(x1, y0 + lift, ze), V3(x0, y0 + lift, ze), V3(x0, y1 + lift, zm), V3(x1, y1 + lift, zm), roofPaint)
+            }
+            withMat(Mat.WOOD) {
                 if (side == 1) {
-                    quad(V3(x0, ya + lift, za), V3(x1, ya + lift, za), V3(x1, yb + lift, zb), V3(x0, yb + lift, zb), c)
-                    quad(V3(x0, ya, za), V3(x0, yb, zb), V3(x1, yb, zb), V3(x1, ya, za), Palette.ROOF_DARK)
+                    quad(V3(x0, y0, ze), V3(x0, y1, zm), V3(x1, y1, zm), V3(x1, y0, ze), SOFFIT)
+                    quad(V3(x0, y0, z1), V3(x1, y0, z1), V3(x1, y0 + 0.07f, z1), V3(x0, y0 + 0.07f, z1), SOFFIT.darker(0.1f))
                 } else {
-                    quad(V3(x1, ya + lift, za), V3(x0, ya + lift, za), V3(x0, yb + lift, zb), V3(x1, yb + lift, zb), c)
-                    quad(V3(x1, ya, za), V3(x1, yb, zb), V3(x0, yb, zb), V3(x0, ya, za), Palette.ROOF_DARK)
+                    quad(V3(x1, y0, ze), V3(x1, y1, zm), V3(x0, y1, zm), V3(x0, y0, ze), SOFFIT)
+                    quad(V3(x1, y0, z0), V3(x0, y0, z0), V3(x0, y0 + 0.07f, z0), V3(x1, y0 + 0.07f, z0), SOFFIT.darker(0.1f))
                 }
             }
-            if (side == 1) {
-                quad(V3(x0, y0, z1), V3(x1, y0, z1), V3(x1, y0 + 0.05f, z1), V3(x0, y0 + 0.05f, z1), Palette.ROOF_DARK)
-            } else {
-                quad(V3(x1, y0, z0), V3(x0, y0, z0), V3(x0, y0 + 0.05f, z0), V3(x1, y0 + 0.05f, z0), Palette.ROOF_DARK)
+        }
+        withMat(Mat.ROOF.copy(texScale = 0.6f)) {
+            group {
+                translate(0f, y1 + 0.06f, zm)
+                rotateZ(90f)
+                cylinder(0f, x0 - 0.04f, 0f, 0.13f, x1 - x0 + 0.08f, ROOF_TILE.darker(0.12f), sides = 10)
             }
         }
-        block(x0 - 0.02f, y1 - 0.02f, zm - 0.12f, x1 + 0.02f, y1 + 0.12f, zm + 0.12f, Palette.ROOF_DARK)
-        mat = Mat.MATTE
+        mat = Mat.PLASTER
         for (end in 0..1) {
             val x = if (end == 0) r.minX - t else r.maxX + t
             val zA = r.minZ - t
@@ -265,11 +286,17 @@ object HouseModel {
                 quad(V3(x, ROOF_Y, zA), V3(x, ROOF_Y, zB), V3(x, yBand, zB), V3(x, yBand, zA), EXTERIOR)
                 tri(V3(x, yBand, zA), V3(x, yBand, zB), V3(x, yTop, zm), EXTERIOR)
                 tri(V3(x + 0.05f, yBand, zB), V3(x + 0.05f, yBand, zA), V3(x + 0.05f, yTop, zm), EXTERIOR)
-                group {
-                    translate(x - 0.02f, ROOF_Y + 1.0f, zm)
-                    cylinder(0f, 0f, 0f, 0.32f, 0.04f, TRIM, sides = 16)
-                    group { rotateZ(90f); cylinder(0f, -0.06f, 0f, 0.36f, 0.06f, TRIM, sides = 16, caps = true) }
-                    group { rotateZ(90f); cylinder(0f, -0.07f, 0f, 0.27f, 0.02f, Palette.SKY, sides = 16) }
+                withMat(Mat.PAINTED_WOOD) {
+                    group {
+                        translate(x - 0.02f, ROOF_Y + 1.0f, zm)
+                        group { rotateZ(90f); cylinder(0f, -0.06f, 0f, 0.36f, 0.06f, TRIM, sides = 20, caps = true) }
+                    }
+                }
+                withMat(Mat.GLASS) {
+                    group {
+                        translate(x - 0.02f, ROOF_Y + 1.0f, zm)
+                        group { rotateZ(90f); cylinder(0f, -0.075f, 0f, 0.28f, 0.02f, Palette.GLASS, sides = 20) }
+                    }
                 }
             } else {
                 quad(V3(x, ROOF_Y, zB), V3(x, ROOF_Y, zA), V3(x, yBand, zA), V3(x, yBand, zB), EXTERIOR)
@@ -277,20 +304,22 @@ object HouseModel {
                 tri(V3(x - 0.05f, yBand, zA), V3(x - 0.05f, yBand, zB), V3(x - 0.05f, yTop, zm), EXTERIOR)
             }
         }
-        block(r.minX - t, ROOF_Y - 0.12f, r.minZ - t, r.maxX + t, ROOF_Y, r.maxZ + t, TRIM)
-        mat = Mat(roughness = 0.8f)
-        block(3.0f, ROOF_Y + 0.6f, -14.2f, 3.8f, ROOF_Y + RIDGE + 0.8f, -13.4f, rgb(0xE07B6A))
-        block(2.9f, ROOF_Y + RIDGE + 0.8f, -14.3f, 3.9f, ROOF_Y + RIDGE + 0.95f, -13.3f, rgb(0xC9675A))
+        withMat(Mat.PAINTED_WOOD) { block(r.minX - t, ROOF_Y - 0.12f, r.minZ - t, r.maxX + t, ROOF_Y, r.maxZ + t, TRIM) }
+        withMat(Mat.BRICK) {
+            block(3.0f, ROOF_Y + 0.6f, -14.2f, 3.8f, ROOF_Y + RIDGE + 0.8f, -13.4f, rgb(0xA9583F))
+        }
+        withMat(Mat.STONE) {
+            block(2.9f, ROOF_Y + RIDGE + 0.8f, -14.3f, 3.9f, ROOF_Y + RIDGE + 0.95f, -13.3f, rgb(0x8E887E))
+        }
     }
 
     fun porch(): Mesh = mesh {
         val p = Lot.PORCH
-        mat = Mat.MATTE
-        block(p.minX, 0f, p.minZ, p.maxX, 0.16f, p.maxZ - 0.35f, Palette.STONE)
-        block(p.minX + 0.2f, 0f, p.maxZ - 0.35f, p.maxX - 0.2f, 0.08f, p.maxZ, Palette.STONE_DARK)
-        mat = Mat.SOFT
-        roundBox(0f, 0.17f, p.minZ + 0.3f, 1.0f, 0.02f, 0.5f, 0.01f, Palette.CORAL)
-        mat = Mat(roughness = 0.6f)
+        withMat(Mat.STONE) {
+            block(p.minX, 0f, p.minZ, p.maxX, 0.16f, p.maxZ - 0.35f, rgb(0xC9C3B7))
+            block(p.minX + 0.2f, 0f, p.maxZ - 0.35f, p.maxX - 0.2f, 0.08f, p.maxZ, rgb(0xB3AC9F))
+        }
+        withMat(Mat.CARPET) { roundBox(0f, 0.17f, p.minZ + 0.3f, 1.0f, 0.02f, 0.5f, 0.01f, rgb(0xB5654C)) }
     }
 }
 
@@ -305,13 +334,13 @@ private fun MeshBuilder.porchLights() {
 }
 
 private fun MeshBuilder.frontDoor() {
-    withMat(Mat(roughness = 0.6f)) {
+    withMat(Mat.PAINTED_WOOD) {
         group {
             translate(-0.75f, 0.04f, -6.04f)
             rotateY(-100f)
-            block(0f, 0.02f, -0.03f, 1.48f, 2.24f, 0.03f, rgb(0x7CC4A4))
-            block(0.15f, 0.25f, 0.03f, 1.33f, 1.0f, 0.045f, rgb(0x6BB394))
-            block(0.15f, 1.2f, 0.03f, 1.33f, 2.05f, 0.045f, rgb(0x6BB394))
+            block(0f, 0.02f, -0.03f, 1.48f, 2.24f, 0.03f, rgb(0x6FA88E))
+            block(0.15f, 0.25f, 0.03f, 1.33f, 1.0f, 0.045f, rgb(0x64997F))
+            block(0.15f, 1.2f, 0.03f, 1.33f, 2.05f, 0.045f, rgb(0x64997F))
             withMat(Mat.METAL) { sphere(1.3f, 1.1f, 0.07f, 0.04f, Palette.YELLOW, rings = 4, segments = 8) }
         }
     }

@@ -111,5 +111,6 @@ class Rng(seed: Long) {
 
     fun range(a: Float, b: Float) = a + (b - a) * nextFloat()
     fun chance(p: Float) = nextFloat() < p
+    fun int(bound: Int) = (nextFloat() * bound).toInt().coerceAtMost(bound - 1)
     fun <T> pick(list: List<T>): T = list[(nextFloat() * list.size).toInt().coerceAtMost(list.size - 1)]
 }

@@ -41,6 +41,8 @@ class SceneRefs {
     var hoopNet: Node? = null
     var goalNet: Node? = null
     var clouds: Node? = null
+    var sky: io.github.sceneview.model.ModelInstance? = null
+    val lamps = arrayOfNulls<io.github.sceneview.node.LightNode>(LAMP_SPOTS.size)
     var nextGate: Node? = null
     val gates = arrayOfNulls<Node>(8)
     val drops = arrayOfNulls<Node>(12)
@@ -56,6 +58,12 @@ class SceneRefs {
     val splashes = arrayOfNulls<Node>(6)
 }
 
+val LAMP_SPOTS = listOf(
+    Position(-1.6f, 2.45f, -2.3f), Position(1.6f, 2.45f, -2.3f),
+    Position(-2.4f, 2.45f, 18.8f), Position(2.4f, 2.45f, 18.8f),
+    Position(-1.05f, 1.8f, -5.55f), Position(1.05f, 1.8f, -5.55f),
+)
+
 private class Holder {
     var node: Node? = null
 }
@@ -67,7 +75,7 @@ private fun rememberHolder() = remember { Holder() }
 fun SceneScope.StaticWorld(refs: SceneRefs, wallColor: Int, floorStyle: Int) {
     val ground = rememberMeshInstance(modelLoader, "ground") { WorldModel.ground() }
     val scenery = rememberMeshInstance(modelLoader, "scenery") { WorldModel.scenery() }
-    val clouds = rememberMeshInstance(modelLoader, "clouds") { WorldModel.clouds(3) }
+    val sky = rememberMeshInstance(modelLoader, "sky-dome") { WorldModel.skyDome() }
     val outskirts = rememberMeshInstance(modelLoader, "outskirts") { WorldModel.outskirts() }
     val floor = rememberMeshInstance(modelLoader, "floor-$floorStyle") { HouseModel.floor(floorStyle) }
     val roof = rememberMeshInstance(modelLoader, "roof") { HouseModel.roof() }
@@ -80,7 +88,25 @@ fun SceneScope.StaticWorld(refs: SceneRefs, wallColor: Int, floorStyle: Int) {
     Node(apply = { refs.scenery = this }) { scenery?.let { Part(it) } }
     floor?.let { Part(it, shadow = false) }
     porch?.let { Part(it) }
-    Node(apply = { refs.clouds = this }) { clouds?.let { Part(it, shadow = false) } }
+    DisposableEffect(sky) {
+        refs.sky = sky
+        onDispose { if (refs.sky === sky) refs.sky = null }
+    }
+    sky?.let { Part(it, shadow = false, apply = { isShadowReceiver = false }) }
+    DisposableEffect(Unit) { onDispose { refs.lamps.fill(null) } }
+    LAMP_SPOTS.forEachIndexed { i, p ->
+        LightNode(
+            type = com.google.android.filament.LightManager.Type.POINT,
+            intensity = 0f,
+            position = p,
+            apply = {
+                color(1f, 0.78f, 0.5f)
+                falloff(8f)
+                castShadows(false)
+            },
+            nodeApply = { refs.lamps[i] = this },
+        )
+    }
     Node(apply = { refs.roof = this }) { roof?.let { Part(it) } }
     for (side in WallSide.entries) {
         key(side) {

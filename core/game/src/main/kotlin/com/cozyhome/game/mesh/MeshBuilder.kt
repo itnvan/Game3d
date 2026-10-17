@@ -17,6 +17,7 @@ class MeshPart(
     val normals: FloatArray,
     val colors: FloatArray,
     val indices: IntArray,
+    val uvs: FloatArray = FloatArray(positions.size / 3 * 2),
 ) {
     val vertexCount: Int get() = positions.size / 3
     val triangleCount: Int get() = indices.size / 3
@@ -51,17 +52,21 @@ private class PartBuffer(val mat: Mat) {
     var positions = FloatArray(capacity * 3)
     var normals = FloatArray(capacity * 3)
     var colors = FloatArray(capacity * 4)
+    var uvs = FloatArray(capacity * 2)
     var indices = IntArray(capacity * 3)
     var vCount = 0
     var iCount = 0
 
-    fun addVertex(p: V3, n: V3, c: Rgb): Int {
+    fun addVertex(p: V3, n: V3, c: Rgb, u: Float = 0f, v: Float = 0f): Int {
         if (vCount == capacity) {
             capacity *= 2
             positions = positions.copyOf(capacity * 3)
             normals = normals.copyOf(capacity * 3)
             colors = colors.copyOf(capacity * 4)
+            uvs = uvs.copyOf(capacity * 2)
         }
+        uvs[vCount * 2] = u
+        uvs[vCount * 2 + 1] = v
         val i3 = vCount * 3
         positions[i3] = p.x; positions[i3 + 1] = p.y; positions[i3 + 2] = p.z
         normals[i3] = n.x; normals[i3 + 1] = n.y; normals[i3 + 2] = n.z
@@ -82,6 +87,7 @@ private class PartBuffer(val mat: Mat) {
         normals.copyOf(vCount * 3),
         colors.copyOf(vCount * 4),
         indices.copyOf(iCount),
+        uvs.copyOf(vCount * 2),
     )
 }
 
@@ -121,11 +127,39 @@ class MeshBuilder {
         mirrored = transform.determinant < 0f
     }
 
-    private fun vertex(x: Float, y: Float, z: Float, nx: Float, ny: Float, nz: Float, paint: Paint): Int {
+    var uvOverride: ((Float, Float, Float) -> Pair<Float, Float>)? = null
+
+    private fun vertex(x: Float, y: Float, z: Float, nx: Float, ny: Float, nz: Float, paint: Paint, eu: Float = Float.NaN, ev: Float = Float.NaN): Int {
         val p = transform.point(x, y, z)
         val n = transform.normal(nx, ny, nz)
-        return current.addVertex(p, n, paint.at(p.x, p.y, p.z))
+        val m = mat
+        var u = 0f
+        var v = 0f
+        val override = uvOverride
+        if (!eu.isNaN()) {
+            u = eu
+            v = ev
+        } else if (override != null) {
+            val uv = override(x, y, z)
+            u = uv.first
+            v = uv.second
+        } else if (m.tex != Tex.NONE) {
+            val s = 1f / m.texScale
+            val ax = abs(n.x)
+            val ay = abs(n.y)
+            val az = abs(n.z)
+            when {
+                ay >= ax && ay >= az -> { u = p.x * s; v = p.z * s }
+                ax >= az -> { u = p.z * s; v = -p.y * s }
+                else -> { u = p.x * s; v = -p.y * s }
+            }
+        }
+        return current.addVertex(p, n, paint.at(p.x, p.y, p.z), u, v)
     }
+
+    fun vertexPublic(p: V3, n: V3, paint: Paint): Int = vertex(p.x, p.y, p.z, n.x, n.y, n.z, paint)
+
+    fun triPublic(a: Int, b: Int, c: Int) = triangle(a, b, c)
 
     private fun triangle(a: Int, b: Int, c: Int) {
         if (mirrored) current.addTriangle(a, c, b) else current.addTriangle(a, b, c)
@@ -324,6 +358,132 @@ class MeshBuilder {
         }
     }
 
+    fun warpSphere(paint: Paint, rings: Int = 12, segments: Int = 18, shape: (Float, Float, Float) -> V3) {
+        val grid = Array(rings + 1) { i ->
+            val phi = i.toFloat() / rings * PI.toFloat()
+            Array(segments + 1) { j ->
+                val theta = j.toFloat() / segments * 2f * PI.toFloat()
+                if (j == segments) null else shape(sin(phi) * cos(theta), cos(phi), sin(phi) * sin(theta))
+            }
+        }
+        val pts = Array(rings + 1) { i -> Array(segments + 1) { j -> grid[i][j % segments]!! } }
+        val acc = Array(rings + 1) { Array(segments) { floatArrayOf(0f, 0f, 0f) } }
+        fun add(i: Int, j: Int, n: V3) { val a = acc[i][j % segments]; a[0] += n.x; a[1] += n.y; a[2] += n.z }
+        for (i in 0 until rings) for (j in 0 until segments) {
+            val a = pts[i + 1][j]; val b = pts[i][j]; val c = pts[i][j + 1]; val d = pts[i + 1][j + 1]
+            val n1 = (b - a) cross (c - a)
+            val n2 = (c - a) cross (d - a)
+            add(i + 1, j, n1 + n2); add(i, j, n1); add(i, j + 1, n1 + n2); add(i + 1, j + 1, n2)
+        }
+        val pole0 = acc[0].fold(V3(0f, 0f, 0f)) { s, v -> s + V3(v[0], v[1], v[2]) }
+        val pole1 = acc[rings].fold(V3(0f, 0f, 0f)) { s, v -> s + V3(v[0], v[1], v[2]) }
+        val ids = Array(rings + 1) { i ->
+            IntArray(segments + 1) { j ->
+                val p = pts[i][j]
+                val n = when (i) {
+                    0 -> pole0
+                    rings -> pole1
+                    else -> acc[i][j % segments].let { V3(it[0], it[1], it[2]) }
+                }.normalized()
+                vertex(p.x, p.y, p.z, n.x, n.y, n.z, paint)
+            }
+        }
+        for (i in 0 until rings) for (j in 0 until segments) {
+            val a = ids[i + 1][j]; val b = ids[i][j]; val c = ids[i][j + 1]; val d = ids[i + 1][j + 1]
+            if (i != 0) triangle(a, b, c)
+            if (i != rings - 1) triangle(a, c, d)
+        }
+    }
+
+    fun tube(path: List<V3>, radius: (Float) -> Float, paint: Paint, sides: Int = 8, flatten: Float = 1f, up: V3 = V3(0f, 1f, 0f), caps: Boolean = true) {
+        if (path.size < 2) return
+        val n = path.size
+        val tangents = List(n) { i ->
+            val a = path[(i - 1).coerceAtLeast(0)]
+            val b = path[(i + 1).coerceAtMost(n - 1)]
+            (b - a).normalized()
+        }
+        var side = (tangents[0] cross up).let { if (it.length < 1e-4f) tangents[0] cross V3(1f, 0f, 0f) else it }.normalized()
+        val rows = Array(n) { IntArray(sides + 1) }
+        for (i in 0 until n) {
+            val t = tangents[i]
+            side = (side - t * (side dot t)).let { if (it.length < 1e-5f) side else it.normalized() }
+            val bin = (t cross side).normalized()
+            val r = radius(i / (n - 1f))
+            for (s in 0..sides) {
+                val a = s.toFloat() / sides * 2f * PI.toFloat()
+                val ca = cos(a); val sa = sin(a)
+                val dir = side * ca + bin * (sa * flatten)
+                val nrm = (side * (ca * flatten) + bin * sa).normalized()
+                val p = path[i] + dir * r
+                rows[i][s] = vertex(p.x, p.y, p.z, nrm.x, nrm.y, nrm.z, paint)
+            }
+        }
+        for (i in 0 until n - 1) for (s in 0 until sides) {
+            val a = rows[i][s]; val b = rows[i][s + 1]; val c = rows[i + 1][s + 1]; val d = rows[i + 1][s]
+            triangle(a, b, c)
+            triangle(a, c, d)
+        }
+        if (caps) {
+            val r0 = radius(0f); val r1 = radius(1f)
+            if (r0 > 1e-4f) ellipsoid(path[0].x, path[0].y, path[0].z, r0, r0, r0, paint, 4, sides)
+            if (r1 > 1e-4f) ellipsoid(path[n - 1].x, path[n - 1].y, path[n - 1].z, r1, r1, r1, paint, 4, sides)
+        }
+    }
+
+    fun dome(radius: Float, rings: Int, segments: Int, maxPolarDeg: Float, azimuthOffsetDeg: Float, paint: Paint) {
+        val ids = Array(rings + 1) { IntArray(segments + 1) }
+        for (i in 0..rings) {
+            val polar = maxPolarDeg * i / rings
+            val th = polar * PI.toFloat() / 180f
+            val v = (polar / 90f).coerceAtMost(0.995f)
+            for (j in 0..segments) {
+                val u = j.toFloat() / segments
+                val ph = (u * 360f + azimuthOffsetDeg) * PI.toFloat() / 180f
+                val dx = sin(th) * cos(ph)
+                val dy = cos(th)
+                val dz = sin(th) * sin(ph)
+                ids[i][j] = vertex(dx * radius, dy * radius, dz * radius, -dx, -dy, -dz, paint, u, v)
+            }
+        }
+        for (i in 0 until rings) for (j in 0 until segments) {
+            val a = ids[i][j]; val b = ids[i][j + 1]; val c = ids[i + 1][j + 1]; val d = ids[i + 1][j]
+            if (i != 0) triangle(a, b, c)
+            triangle(a, c, d)
+        }
+    }
+
+    fun puff(
+        cx: Float, cy: Float, cz: Float, rx: Float, ry: Float, rz: Float, paint: Paint,
+        subdivisions: Int = 2, wobble: Float = 0.08f, seed: Int = 0, floorY: Float = Float.NEGATIVE_INFINITY,
+    ) {
+        val (verts, faces) = icosphere(subdivisions)
+        val a = hash01(seed, 1, 3) * 6.28f
+        val b = hash01(seed, 2, 5) * 6.28f
+        val c = hash01(seed, 3, 7) * 6.28f
+        val pts = verts.map { v ->
+            val lump = (sin(v.x * 3.1f + a) + sin(v.y * 2.7f + b) + sin(v.z * 3.3f + c)) / 3f +
+                0.5f * (sin(v.x * 6.3f + b) * sin(v.z * 5.9f + c)) * sin(v.y * 6.1f + a)
+            val k = 1f + wobble * lump
+            V3(cx + v.x * rx * k, maxOf(floorY, cy + v.y * ry * k), cz + v.z * rz * k)
+        }
+        val acc = Array(pts.size) { floatArrayOf(0f, 0f, 0f) }
+        val center = V3(cx, cy, cz)
+        val oriented = faces.map { f ->
+            val p0 = pts[f[0]]; val p1 = pts[f[1]]; val p2 = pts[f[2]]
+            val n = (p1 - p0) cross (p2 - p0)
+            val flip = (n dot ((p0 + p1 + p2) * (1f / 3f) - center)) < 0f
+            val fn = if (flip) n * -1f else n
+            for (k in f) { acc[k][0] += fn.x; acc[k][1] += fn.y; acc[k][2] += fn.z }
+            if (flip) intArrayOf(f[0], f[2], f[1]) else f
+        }
+        val ids = IntArray(pts.size) { k ->
+            val n = V3(acc[k][0], acc[k][1], acc[k][2]).normalized()
+            vertex(pts[k].x, pts[k].y, pts[k].z, n.x, n.y, n.z, paint)
+        }
+        for (f in oriented) triangle(ids[f[0]], ids[f[1]], ids[f[2]])
+    }
+
     fun lathe(cx: Float, cz: Float, profile: List<Pair<Float, Float>>, paint: Paint, sides: Int = 16, creaseDeg: Float = 40f) {
         if (profile.size < 2) return
         val segNormals = (0 until profile.size - 1).map { i ->
@@ -385,6 +545,37 @@ class MeshBuilder {
         }
     }
 
+    fun arc(cx: Float, cy: Float, cz: Float, radius: Float, tube: Float, fromDeg: Float, toDeg: Float, paint: Paint, segments: Int = 12, sides: Int = 6) {
+        val idx = Array(segments + 1) { IntArray(sides + 1) }
+        for (i in 0..segments) {
+            val t = (fromDeg + (toDeg - fromDeg) * i / segments) * PI.toFloat() / 180f
+            val ox = cos(t) * radius
+            val oy = sin(t) * radius
+            for (j in 0..sides) {
+                val p = j.toFloat() / sides * 2f * PI.toFloat()
+                val nx = cos(p) * cos(t)
+                val ny = cos(p) * sin(t)
+                val nz = sin(p)
+                idx[i][j] = vertex(cx + ox + nx * tube, cy + oy + ny * tube, cz + nz * tube, nx, ny, nz, paint)
+            }
+        }
+        for (i in 0 until segments) for (j in 0 until sides) {
+            val a = idx[i][j]; val b = idx[i][j + 1]; val c = idx[i + 1][j + 1]; val d = idx[i + 1][j]
+            triangle(a, c, b)
+            triangle(a, d, c)
+        }
+        sphere(cx + cos(fromDeg * PI.toFloat() / 180f) * radius, cy + sin(fromDeg * PI.toFloat() / 180f) * radius, cz, tube, paint, 4, 6)
+        sphere(cx + cos(toDeg * PI.toFloat() / 180f) * radius, cy + sin(toDeg * PI.toFloat() / 180f) * radius, cz, tube, paint, 4, 6)
+    }
+
+    fun shadowBlob(cx: Float, cz: Float, rx: Float, rz: Float, y: Float = 0.012f) {
+        withMat(Mat.SHADOW_BLOB) {
+            uvOverride = { x, _, z -> ((x - cx) / (2 * rx) + 0.5f) to ((z - cz) / (2 * rz) + 0.5f) }
+            quad(V3(cx - rx, y, cz + rz), V3(cx + rx, y, cz + rz), V3(cx + rx, y, cz - rz), V3(cx - rx, y, cz - rz), Rgb.BLACK)
+            uvOverride = null
+        }
+    }
+
     fun capsule(cx: Float, y0: Float, cz: Float, radius: Float, height: Float, paint: Paint, sides: Int = 12, capRings: Int = 4) {
         val prof = ArrayList<Pair<Float, Float>>()
         for (k in 0..capRings) {
@@ -413,6 +604,25 @@ class MeshBuilder {
         }
     }
 
+    fun heightField(x0: Float, z0: Float, x1: Float, z1: Float, cellsX: Int, cellsZ: Int, paint: Paint, height: (Float, Float) -> Float) {
+        val dx = (x1 - x0) / cellsX
+        val dz = (z1 - z0) / cellsZ
+        val ids = Array(cellsX + 1) { IntArray(cellsZ + 1) }
+        for (i in 0..cellsX) for (j in 0..cellsZ) {
+            val x = x0 + i * dx
+            val z = z0 + j * dz
+            val hx = height(x + dx * 0.5f, z) - height(x - dx * 0.5f, z)
+            val hz = height(x, z + dz * 0.5f) - height(x, z - dz * 0.5f)
+            val n = V3(-hx / dx, 1f, -hz / dz).normalized()
+            ids[i][j] = vertex(x, height(x, z), z, n.x, n.y, n.z, paint)
+        }
+        for (i in 0 until cellsX) for (j in 0 until cellsZ) {
+            val a = ids[i][j]; val b = ids[i + 1][j]; val c = ids[i + 1][j + 1]; val d = ids[i][j + 1]
+            triangle(a, d, c)
+            triangle(a, c, b)
+        }
+    }
+
     fun include(mesh: Mesh) {
         for (part in mesh.parts) {
             withMat(part.mat) {
@@ -422,7 +632,7 @@ class MeshBuilder {
                     val p = transform.point(part.positions[i3], part.positions[i3 + 1], part.positions[i3 + 2])
                     val n = transform.normal(part.normals[i3], part.normals[i3 + 1], part.normals[i3 + 2])
                     val i4 = v * 4
-                    base[v] = current.addVertexLinear(p, n, part.colors[i4], part.colors[i4 + 1], part.colors[i4 + 2])
+                    base[v] = current.addVertexLinear(p, n, part.colors[i4], part.colors[i4 + 1], part.colors[i4 + 2], part.uvs.getOrElse(v * 2) { 0f }, part.uvs.getOrElse(v * 2 + 1) { 0f })
                 }
                 var t = 0
                 while (t < part.indices.size) {
@@ -435,8 +645,8 @@ class MeshBuilder {
 
     fun build(): Mesh = Mesh(buffers.values.filter { it.iCount > 0 }.map { it.toPart() })
 
-    private fun PartBuffer.addVertexLinear(p: V3, n: V3, r: Float, g: Float, b: Float): Int {
-        val i = addVertex(p, n, Rgb.WHITE)
+    private fun PartBuffer.addVertexLinear(p: V3, n: V3, r: Float, g: Float, b: Float, u: Float, v: Float): Int {
+        val i = addVertex(p, n, Rgb.WHITE, u, v)
         val i4 = i * 4
         colors[i4] = r; colors[i4 + 1] = g; colors[i4 + 2] = b
         return i
@@ -480,3 +690,22 @@ class MeshBuilder {
 }
 
 inline fun mesh(block: MeshBuilder.() -> Unit): Mesh = MeshBuilder().apply(block).build()
+
+fun smoothPath(points: List<V3>, perSegment: Int = 4): List<V3> {
+    if (points.size < 3) return points
+    val out = ArrayList<V3>()
+    for (i in 0 until points.size - 1) {
+        val p0 = points[(i - 1).coerceAtLeast(0)]
+        val p1 = points[i]
+        val p2 = points[i + 1]
+        val p3 = points[(i + 2).coerceAtMost(points.size - 1)]
+        for (k in 0 until perSegment) {
+            val t = k / perSegment.toFloat()
+            val t2 = t * t
+            val t3 = t2 * t
+            out += (p1 * 2f + (p2 - p0) * t + (p0 * 2f - p1 * 5f + p2 * 4f - p3) * t2 + (p1 * 3f - p0 - p2 * 3f + p3) * t3) * 0.5f
+        }
+    }
+    out += points.last()
+    return out
+}

@@ -22,9 +22,9 @@ data class CameraRig(
 class FollowCamera {
     var yaw = 0f
         private set
-    var pitch = 38f
+    var pitch = 30f
         private set
-    var distance = 9.5f
+    var distance = 8f
         private set
     var target = V3.ZERO
         private set

@@ -261,24 +261,3 @@ fun SoccerTouchLayer(vm: GameViewModel, goalPoint: (Float, Float) -> V3?) {
         }
     }
 }
-
-@Composable
-fun LoadingOverlay() {
-    val t = rememberInfiniteTransition(label = "load")
-    val bounce by t.animateFloat(0f, 1f, infiniteRepeatable(tween(700), RepeatMode.Reverse), label = "b")
-    Box(
-        Modifier
-            .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(SkyTop, SkyBottom))),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("🏡", fontSize = 64.sp, modifier = Modifier.padding(bottom = (bounce * 14).dp))
-            Text(stringResource(R.string.app_name), color = White, fontSize = 30.sp, fontWeight = FontWeight.Black)
-            Text(stringResource(R.string.loading), color = Ink.copy(alpha = 0.7f), fontSize = 15.sp, fontWeight = FontWeight.Bold)
-            Box(Modifier.size(width = 160.dp, height = 8.dp).background(White.copy(alpha = 0.6f), androidx.compose.foundation.shape.RoundedCornerShape(50))) {
-                Box(Modifier.size(width = (40 + 120 * bounce).dp, height = 8.dp).background(Mint, androidx.compose.foundation.shape.RoundedCornerShape(50)).alpha(1f))
-            }
-        }
-    }
-}

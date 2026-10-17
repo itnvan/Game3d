@@ -18,6 +18,10 @@ import com.cozyhome.app.BuildConfig
 import com.cozyhome.app.game.Haptic
 import com.cozyhome.app.render.QualityGovernor
 import com.cozyhome.app.render.buildSkyEnvironment
+import com.cozyhome.app.render.LocalTextureBank
+import com.cozyhome.app.render.MeshLoad
+import com.cozyhome.app.render.rememberTextureBank
+import androidx.compose.runtime.CompositionLocalProvider
 import com.cozyhome.app.render.rememberFill
 import com.cozyhome.app.render.rememberSun
 import com.cozyhome.app.ui.play.hud.PlayHud
@@ -68,6 +72,8 @@ fun PlayScreen(vm: GameViewModel) {
     val sun = rememberSun(engine)
     val fill = rememberFill(engine)
     val refs = remember { SceneRefs() }
+    val bank = rememberTextureBank(engine)
+    LaunchedEffect(bank) { bank.load() }
     val applier = remember { FrameApplier(refs) }
     val save = vm.save
     val hud = vm.hud
@@ -88,6 +94,12 @@ fun PlayScreen(vm: GameViewModel) {
         withFrameNanos { }
         withFrameNanos { }
         governor.apply(gfxPrefs.getInt("tier", 0))
+        view.colorGrading = com.google.android.filament.ColorGrading.Builder()
+            .toneMapper(com.google.android.filament.ToneMapper.PBRNeutralToneMapper())
+            .contrast(1.06f)
+            .saturation(1.0f)
+            .vibrance(1.0f)
+            .build(engine)
     }
 
     val hostView = LocalView.current
@@ -116,11 +128,16 @@ fun PlayScreen(vm: GameViewModel) {
                 skyTimer -= dt
                 if (skyTimer <= 0f) {
                     skyTimer = 0.5f
-                    applier.applySky(DayClock.sky(DayClock.hour(now, vm.save.clockOffsetMs)), sun, fill, environment, view, invalidator, BASE_IBL)
+                    applier.applySky(DayClock.sky(DayClock.hour(now, vm.save.clockOffsetMs)), sun, fill, environment, view, invalidator, BASE_IBL, bank)
                 }
                 if (!ready) {
                     warm += dt
-                    if (warm > 1.2f && refs.walls.all { it != null }) ready = true
+                    if (BuildConfig.DEBUG && (warm * 10f).toInt() != ((warm - dt) * 10f).toInt() && (warm * 10f).toInt() % 10 == 0) android.util.Log.d("Load", "t=$warm bank=${bank.ready} ${bank.progress} pending=${MeshLoad.pending} done=${MeshLoad.finished}")
+                    if (warm > 0.8f && bank.ready && MeshLoad.pending == 0 && refs.walls.all { it != null }) {
+                        if (BuildConfig.DEBUG) android.util.Log.d("Load", "ready t=$warm meshes=${MeshLoad.finished}")
+                        ready = true
+                        skyTimer = 0f
+                    }
                 }
             }
         }
@@ -148,11 +165,13 @@ fun PlayScreen(vm: GameViewModel) {
                 if (BuildConfig.DEBUG && governor.lastAverageMs > 0f && t % 64 == 0L) android.util.Log.d("Gfx", "tier=${governor.tier} avgMs=${governor.lastAverageMs}")
             },
         ) {
-            StaticWorld(refs, save.wallColor, save.floorStyle)
-            Furniture(save.placed, hud.decorEdit, refs)
-            Garden(hud.plotVisuals, refs)
-            SportsProps(refs, showKeeper = hud.mode == Mode.SOCCER, showGates = hud.mode == Mode.JOG)
-            CharacterRig(outfit, refs.player, "player", withCan = true)
+            CompositionLocalProvider(LocalTextureBank provides bank) {
+                StaticWorld(refs, save.wallColor, save.floorStyle)
+                Furniture(save.placed, hud.decorEdit, refs)
+                Garden(hud.plotVisuals, refs)
+                SportsProps(refs, showKeeper = hud.mode == Mode.SOCCER, showGates = hud.mode == Mode.JOG)
+                CharacterRig(outfit, refs.player, "player", withCan = true)
+            }
         }
 
         val screenRay: (Float, Float) -> Pair<V3, V3>? = remember(view) {
@@ -183,6 +202,12 @@ fun PlayScreen(vm: GameViewModel) {
         }
 
         PlayHud(vm)
-        if (!ready) LoadingOverlay()
+        androidx.compose.animation.AnimatedVisibility(!ready, enter = androidx.compose.animation.fadeIn(), exit = androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(650))) {
+            LoadingOverlay {
+                val meshes = MeshLoad.finished + MeshLoad.pending
+                val meshPart = if (meshes == 0) 0f else MeshLoad.finished / meshes.toFloat()
+                (bank.progress * 0.45f + meshPart * 0.55f).coerceIn(0f, 1f)
+            }
+        }
     }
 }

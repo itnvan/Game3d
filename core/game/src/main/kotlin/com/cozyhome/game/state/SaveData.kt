@@ -14,6 +14,10 @@ data class Appearance(
     val pants: Int = 0,
     val shoes: Int = 0,
     val hat: Int = 0,
+    val top: Int = 0,
+    val bottom: Int = 0,
+    val eyeColor: Int = 0,
+    val eyeStyle: Int = 0,
 )
 
 @Serializable
@@ -63,4 +67,9 @@ data class SaveData(
     val nextUid: Long = 1L,
     val seenTutorial: Boolean = false,
     val clockOffsetMs: Long = 0L,
+    val pantry: Map<String, Int> = emptyMap(),
+    val daily: com.cozyhome.game.progress.Daily = com.cozyhome.game.progress.Daily(),
+    val album: com.cozyhome.game.progress.Album = com.cozyhome.game.progress.Album(),
+    val tokens: Int = 0,
+    val festivalDebug: String = "",
 )

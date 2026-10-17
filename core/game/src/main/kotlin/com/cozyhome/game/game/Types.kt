@@ -8,12 +8,14 @@ import com.cozyhome.game.sports.SportKind
 import com.cozyhome.game.state.SaveData
 import com.cozyhome.game.world.WallSide
 
-enum class Mode { FREE, SIT, SLEEP, ACTION, BASKETBALL, SOCCER, JOG, DECOR, BOUNCE, SWING }
+enum class Mode { FREE, SIT, SLEEP, ACTION, BASKETBALL, SOCCER, JOG, DECOR, BOUNCE, SWING, FISH }
 
 enum class ActionKind {
     PLANT, WATER, HARVEST, GROWING, BASKETBALL, SOCCER, JOG, GIFT, WATER_ALL,
-    SIT, SLEEP, TV_ON, TV_OFF, LAMP_ON, LAMP_OFF, BOUNCE, SWING,
+    SIT, SLEEP, TV_ON, TV_OFF, LAMP_ON, LAMP_OFF, BOUNCE, SWING, FISH, CATCH_BUG, COOK,
 }
+
+enum class Emote { WAVE, CHEER, DANCE, CLAP, LAUGH, HEART, THINK, SAD }
 
 sealed interface Target {
     data class PlotSpot(val index: Int) : Target
@@ -23,6 +25,8 @@ sealed interface Target {
     data object Mailbox : Target
     data object Tap : Target
     data class Furniture(val uid: Long) : Target
+    data object Pond : Target
+    data class BugTarget(val id: Int) : Target
 }
 
 data class Interaction(val target: Target, val kind: ActionKind, val detail: String = "")
@@ -30,7 +34,8 @@ data class Interaction(val target: Target, val kind: ActionKind, val detail: Str
 enum class Msg {
     GROWING, GIFT_TAKEN, GIFT_RECEIVED, NOTHING_TO_WATER, WATERED_ALL, NOT_ENOUGH_COINS, PLANTED,
     HARVESTED, GOOD_NIGHT, NAP, LEVEL_UP, OFF_TRACK, PERFECT_BOUNCE, PLACE_INVALID, STORED, BOUGHT,
-    LOCKED, NO_SPACE, PLACED, WELCOME,
+    LOCKED, NO_SPACE, PLACED, WELCOME, FISH_ESCAPED, FISH_SNAPPED, TOO_EARLY, BUG_MISSED, BUG_CAUGHT, COOKED,
+    MISSING_INGREDIENTS, QUEST_DONE, MILESTONE, FESTIVAL_TOKENS,
 }
 
 sealed interface WorldEvent {
@@ -40,6 +45,11 @@ sealed interface WorldEvent {
     data class Sport(val event: SportEvent) : WorldEvent
     data class SportResult(val kind: SportKind, val score: Int, val detail: Int, val coins: Int, val best: Boolean, val millis: Long) : WorldEvent
     data class LevelUp(val level: Int) : WorldEvent
+    data class FishCaught(val species: String, val cm: Int, val record: Boolean, val firstTime: Boolean) : WorldEvent
+    data class BugCaught(val species: String, val firstTime: Boolean) : WorldEvent
+    data object OpenCook : WorldEvent
+    data class Cooked(val recipe: String, val firstTime: Boolean) : WorldEvent
+    data class Fish(val event: com.cozyhome.game.activities.FishEvent) : WorldEvent
 }
 
 class FrameInput {
@@ -49,6 +59,7 @@ class FrameInput {
     var lookPitch = 0f
     var zoom = 1f
     var sprint = false
+    var hold = false
 }
 
 class FrameState {
@@ -78,7 +89,22 @@ class FrameState {
     var bounceSquash = 0f
     var waterTime = 0f
     var clock = 0f
+    var rodVisible = false
+    var rodTip = V3.ZERO
+    var bobber = V3.ZERO
+    var bobberVisible = false
+    var fishShown: String? = null
+    var fishTension = 0f
+    var fishProgress = 0f
+    var fishPhase = 0
+    var netSwing = -1f
+    var emote: Emote? = null
+    var emoteTime = 0f
+    var cookTime = -1f
+    val bugs = ArrayList<BugView>()
 }
+
+data class BugView(val id: Int, val species: String, val pos: V3, val heading: Float, val flap: Float)
 
 interface SaveAccess {
     val current: SaveData

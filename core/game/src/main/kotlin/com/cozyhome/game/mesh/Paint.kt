@@ -55,15 +55,55 @@ data class Mat(
     val alpha: Float = 1f,
     val unlit: Boolean = false,
     val doubleSided: Boolean = false,
+    val tex: Tex = Tex.NONE,
+    val blend: Boolean = false,
+    val texScale: Float = 1f,
 ) {
+    fun textured(t: Tex, scale: Float) = copy(tex = t, texScale = scale)
+
     companion object {
         val MATTE = Mat()
         val SOFT = Mat(roughness = 1f)
         val GLOSSY = Mat(roughness = 0.35f)
         val METAL = Mat(roughness = 0.3f, metallic = 0.85f)
-        val GLASS = Mat(roughness = 0.08f, alpha = 0.32f)
-        val WATER = Mat(roughness = 0.05f, alpha = 0.72f)
+        val GLASS = Mat(roughness = 0.05f, alpha = 0.28f)
+        val WATER = Mat(roughness = 0.04f, alpha = 0.78f, tex = Tex.WATER, texScale = 1.6f)
         val UNLIT = Mat(unlit = true)
+        val WOOD = Mat(roughness = 0.55f, tex = Tex.WOOD, texScale = 1.0f)
+        val WOOD_FINE = Mat(roughness = 0.45f, tex = Tex.WOOD, texScale = 0.6f)
+        val FABRIC = Mat(roughness = 0.95f, tex = Tex.FABRIC, texScale = 0.35f)
+        val VELVET = Mat(roughness = 0.9f, tex = Tex.VELVET, texScale = 0.35f)
+        val CARPET = Mat(roughness = 1f, tex = Tex.CARPET, texScale = 0.6f)
+        val PLANKS = Mat(roughness = 0.5f, tex = Tex.PLANKS, texScale = 1.6f)
+        val DECK = Mat(roughness = 0.75f, tex = Tex.DECK, texScale = 1.5f)
+        val KNIT = Mat(roughness = 0.95f, tex = Tex.KNIT, texScale = 0.22f)
+        val CLOTH = Mat(roughness = 0.9f, tex = Tex.JERSEY, texScale = 0.22f)
+        val DENIM = Mat(roughness = 0.9f, tex = Tex.DENIM, texScale = 0.3f)
+        val LEATHER = Mat(roughness = 0.45f, tex = Tex.LEATHER, texScale = 0.5f)
+        val PLASTER = Mat(roughness = 0.9f, tex = Tex.PLASTER, texScale = 2.2f)
+        val STONE = Mat(roughness = 0.85f, tex = Tex.STONE, texScale = 1.2f)
+        val PAVER = Mat(roughness = 0.9f, tex = Tex.PAVER, texScale = 2.0f)
+        val BRICK = Mat(roughness = 0.9f, tex = Tex.BRICK, texScale = 1.6f)
+        val TILE = Mat(roughness = 0.25f, tex = Tex.TILE, texScale = 1.2f)
+        val TRACK = Mat(roughness = 0.9f, tex = Tex.TRACK, texScale = 1.8f)
+        val SAND = Mat(roughness = 1f, tex = Tex.SAND, texScale = 1.6f)
+        val SKY_DOME = Mat(unlit = true, doubleSided = true, tex = Tex.SKY)
+        val BLADE = Mat(roughness = 0.85f, doubleSided = true)
+        val LEAF_THIN = Mat(roughness = 0.5f, doubleSided = true, tex = Tex.LEAF, texScale = 0.3f)
+        val PAINTED_WOOD = Mat(roughness = 0.5f, tex = Tex.PLASTER, texScale = 3f)
+        val COURT = Mat(roughness = 0.55f, tex = Tex.PLASTER, texScale = 3f)
+        val CERAMIC = Mat(roughness = 0.18f)
+        val PLASTIC = Mat(roughness = 0.4f)
+        val ROOF = Mat(roughness = 0.75f, tex = Tex.ROOF, texScale = 1.8f)
+        val GRASS = Mat(roughness = 1f, tex = Tex.GRASS, texScale = 2.2f)
+        val SOIL = Mat(roughness = 1f, tex = Tex.SOIL, texScale = 1.0f)
+        val LEAF = Mat(roughness = 0.8f, tex = Tex.LEAF, texScale = 0.7f)
+        val BARK = Mat(roughness = 0.95f, tex = Tex.BARK, texScale = 0.8f)
+        val SKIN = Mat(roughness = 0.62f)
+        val HAIR = Mat(roughness = 0.42f)
+        val EYE = Mat(roughness = 0.06f)
+        val SHADOW_BLOB = Mat(unlit = true, blend = true, tex = Tex.DOT, alpha = 0.5f)
+        val SOFT_DOT = Mat(roughness = 0.8f, blend = true, tex = Tex.DOT)
         fun glow(color: Rgb, strength: Float = 3f) = Mat(roughness = 0.5f, emissive = color, emissiveStrength = strength)
     }
 }

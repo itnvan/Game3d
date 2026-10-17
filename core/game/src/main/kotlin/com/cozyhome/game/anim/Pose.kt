@@ -5,7 +5,10 @@ import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sin
 
-enum class Anim { IDLE, WALK, RUN, SIT, SLEEP, WATER, HARVEST, SHOOT_AIM, SHOOT_RELEASE, KICK, CHEER, SAD, WAVE, BOUNCE, SWING, KEEPER }
+enum class Anim {
+    IDLE, WALK, RUN, SIT, SLEEP, WATER, HARVEST, SHOOT_AIM, SHOOT_RELEASE, KICK, CHEER, SAD, WAVE, BOUNCE, SWING, KEEPER,
+    FISH_CAST, FISH_HOLD, FISH_REEL, NET, COOK, DANCE, CLAP, LAUGH, THINK, SHOW,
+}
 
 class Pose {
     var lift = 0f
@@ -21,12 +24,13 @@ class Pose {
     var legLFwd = 0f
     var legRFwd = 0f
     var lie = 0f
+    var blink = 0f
 
     fun set(o: Pose) {
         lift = o.lift; bob = o.bob; lean = o.lean; roll = o.roll
         headPitch = o.headPitch; headYaw = o.headYaw
         armLFwd = o.armLFwd; armLOut = o.armLOut; armRFwd = o.armRFwd; armROut = o.armROut
-        legLFwd = o.legLFwd; legRFwd = o.legRFwd; lie = o.lie
+        legLFwd = o.legLFwd; legRFwd = o.legRFwd; lie = o.lie; blink = o.blink
     }
 
     fun clear() = set(ZERO)
@@ -52,6 +56,7 @@ class Animator {
     private var cycle = 0f
     private var clock = 0f
     private var stateTime = 0f
+    private var nextBlink = 2.5f
     var anim = Anim.IDLE
         private set
 
@@ -170,6 +175,95 @@ class Animator {
                 target.armLOut = 12f; target.armROut = 12f
                 target.lean = -extra * 0.35f
             }
+            Anim.FISH_CAST -> {
+                val k = (t / 0.35f).coerceIn(0f, 1f)
+                val fwd = ((t - 0.35f) / 0.25f).coerceIn(0f, 1f)
+                target.armRFwd = 150f * k * (1f - fwd) + 70f * fwd
+                target.armLFwd = 30f
+                target.lean = -8f * k * (1f - fwd) + 10f * fwd
+                target.headPitch = -6f
+            }
+            Anim.FISH_HOLD -> {
+                target.armRFwd = 62f + sin(clock * 1.6f) * 2f
+                target.armROut = -8f
+                target.armLFwd = 40f
+                target.armLOut = -14f
+                target.bob = sin(clock * 2f) * 0.008f
+                target.headPitch = 10f
+            }
+            Anim.FISH_REEL -> {
+                val wob = sin(clock * 18f)
+                target.armRFwd = 80f + wob * 6f
+                target.armROut = -10f
+                target.armLFwd = 55f - wob * 12f
+                target.armLOut = -18f
+                target.lean = -10f + extra * 6f
+                target.legLFwd = 10f
+                target.legRFwd = -14f
+                target.headPitch = 6f
+            }
+            Anim.NET -> {
+                val k = sin((t / 0.55f).coerceIn(0f, 1f) * PI.toFloat())
+                target.armRFwd = 40f + 110f * k
+                target.armLFwd = 30f + 80f * k
+                target.lean = 18f * k
+                target.bob = -0.05f * k
+            }
+            Anim.COOK -> {
+                val stir = sin(clock * 8f)
+                target.armRFwd = 60f + stir * 8f
+                target.armROut = stir * 10f
+                target.armLFwd = 48f
+                target.headPitch = 22f
+                target.lean = 6f
+            }
+            Anim.DANCE -> {
+                val s = sin(clock * 7f)
+                val c = kotlin.math.cos(clock * 7f)
+                target.lift = abs(s) * 0.06f
+                target.roll = s * 10f
+                target.armLFwd = 120f + c * 30f
+                target.armRFwd = 120f - c * 30f
+                target.armLOut = 40f
+                target.armROut = 40f
+                target.legLFwd = s * 20f
+                target.legRFwd = -s * 20f
+                target.headYaw = s * 20f
+            }
+            Anim.CLAP -> {
+                val s = abs(sin(clock * 9f))
+                target.armLFwd = 75f
+                target.armRFwd = 75f
+                target.armLOut = -18f * s - 6f
+                target.armROut = -18f * s - 6f
+                target.bob = s * 0.02f
+            }
+            Anim.LAUGH -> {
+                val s = sin(clock * 16f)
+                target.lean = -12f
+                target.headPitch = -20f + s * 6f
+                target.bob = s * 0.015f
+                target.armLFwd = 20f
+                target.armRFwd = 20f
+                target.armLOut = 20f
+                target.armROut = 20f
+            }
+            Anim.THINK -> {
+                target.armRFwd = 120f
+                target.armROut = -40f
+                target.armLFwd = 40f
+                target.armLOut = -30f
+                target.headPitch = -12f
+                target.headYaw = 16f
+            }
+            Anim.SHOW -> {
+                target.armLFwd = 160f
+                target.armRFwd = 160f
+                target.armLOut = -8f
+                target.armROut = -8f
+                target.headPitch = -16f
+                target.lift = abs(sin(clock * 5f)) * 0.04f
+            }
             Anim.KEEPER -> {
                 target.armLFwd = 40f; target.armRFwd = 40f
                 target.armLOut = 50f; target.armROut = 50f
@@ -185,5 +279,16 @@ class Animator {
             else -> 12f
         }
         pose.dampTo(target, sharp, dt)
+        nextBlink -= dt
+        if (nextBlink < -BLINK_TIME) nextBlink = 2.2f + ((clock * 7919f).toInt() % 100) / 100f * 2.8f
+        pose.blink = when {
+            anim == Anim.SLEEP -> 1f
+            nextBlink < 0f -> sin((-nextBlink / BLINK_TIME) * PI.toFloat())
+            else -> 0f
+        }
+    }
+
+    private companion object {
+        const val BLINK_TIME = 0.16f
     }
 }

@@ -117,16 +117,24 @@ private fun ProfileChip(vm: GameViewModel, modifier: Modifier) {
     val level = Rules.level(save.xp)
     val progress by animateFloatAsState(Rules.levelProgress(save.xp), tween(600), label = "xp")
     Pill(modifier) {
-        Box(Modifier.size(28.dp).background(Mint, CircleShape).border(2.dp, White, CircleShape), contentAlignment = Alignment.Center) {
-            Text(save.name.take(1).uppercase(), color = White, fontWeight = FontWeight.Black, fontSize = 14.sp)
+        Box(contentAlignment = Alignment.BottomEnd) {
+            Box(
+                Modifier.size(32.dp)
+                    .background(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Mint.copy(red = 0.45f), Mint)), CircleShape)
+                    .border(2.dp, White, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(save.name.take(1).uppercase(), style = com.cozyhome.app.ui.components.outlined(15.sp))
+            }
+            Box(Modifier.size(15.dp).background(Lilac, CircleShape).border(1.5.dp, White, CircleShape), contentAlignment = Alignment.Center) {
+                Text("$level", color = White, fontWeight = FontWeight.Black, fontSize = 8.sp)
+            }
         }
         Column {
             Text(save.name, color = Ink, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, maxLines = 1)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(stringResource(R.string.level_short, level), color = Lilac, fontWeight = FontWeight.Black, fontSize = 11.sp)
-                Box(Modifier.width(56.dp).height(6.dp).clip(RoundedCornerShape(50)).background(Ink.copy(alpha = 0.1f))) {
-                    Box(Modifier.fillMaxWidth(progress).height(6.dp).clip(RoundedCornerShape(50)).background(Lilac))
-                }
+                com.cozyhome.app.ui.components.ProgressBar(progress, Lilac, Modifier.width(60.dp).height(7.dp))
             }
         }
     }
@@ -140,7 +148,7 @@ private fun TopRight(vm: GameViewModel, modifier: Modifier, onSettings: () -> Un
             CoinIcon(18.dp)
             Text(coins.toInt().toString(), color = Ink, fontWeight = FontWeight.Black, fontSize = 15.sp)
         }
-        RoundButton("⚙️", White, size = 38.dp, onClick = onSettings)
+        com.cozyhome.app.ui.components.IconButton(com.cozyhome.app.ui.components.Ico.GEAR, InkSoft, size = 38.dp, onClick = onSettings)
     }
 }
 
@@ -149,13 +157,18 @@ private fun ClockChip(hud: HudState, modifier: Modifier) {
     val h = hud.hourQuarter / 4
     val m = (hud.hourQuarter % 4) * 15
     val icon = when {
-        h in 6..17 -> "☀️"
-        h in 18..19 -> "🌇"
-        else -> "🌙"
+        h in 6..17 -> com.cozyhome.app.ui.components.Ico.SUN
+        h in 18..19 -> com.cozyhome.app.ui.components.Ico.SUNSET
+        else -> com.cozyhome.app.ui.components.Ico.MOON
+    }
+    val tint = when (icon) {
+        com.cozyhome.app.ui.components.Ico.SUN -> SunDark
+        com.cozyhome.app.ui.components.Ico.SUNSET -> Coral
+        else -> Lilac
     }
     if (hud.mode == Mode.FREE || hud.mode == Mode.ACTION || hud.mode == Mode.SIT || hud.mode == Mode.SLEEP) {
         Pill(modifier) {
-            Text(icon, fontSize = 15.sp)
+            com.cozyhome.app.ui.components.GameIcon(icon, 17.dp, tint)
             Text("%02d:%02d".format(h, m), color = Ink, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
         }
     }
@@ -255,7 +268,7 @@ private fun BoxScope.BasketHud(vm: GameViewModel) {
     val game = vm.world.basketball
     Column(Modifier.align(Alignment.TopStart), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Pill {
-            Text("🏀", fontSize = 16.sp)
+            com.cozyhome.app.ui.components.GameIcon(com.cozyhome.app.ui.components.Ico.BASKETBALL, 17.dp, Coral)
             Text(stringResource(R.string.basket_hud, (hud.basketShot + 1).coerceAtMost(game?.totalShots ?: 10), game?.totalShots ?: 10, hud.basketScore), color = Ink, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
         }
         if (hud.basketStreak >= 2) Pill(color = Sun) { Text(stringResource(R.string.streak, hud.basketStreak), color = Ink, fontWeight = FontWeight.Black, fontSize = 13.sp) }
@@ -297,7 +310,7 @@ private fun BoxScope.SoccerHud(vm: GameViewModel) {
     val game = vm.world.soccer
     Column(Modifier.align(Alignment.TopStart), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Pill {
-            Text("⚽", fontSize = 16.sp)
+            com.cozyhome.app.ui.components.GameIcon(com.cozyhome.app.ui.components.Ico.SOCCER, 17.dp, Ink)
             Text(stringResource(R.string.soccer_hud, hud.soccerGoals, game?.totalKicks ?: 5), color = Ink, fontWeight = FontWeight.ExtraBold, fontSize = 15.sp)
             for (k in 0 until (game?.totalKicks ?: 5)) {
                 val r = hud.soccerResults.getOrNull(k)
@@ -316,7 +329,7 @@ private fun BoxScope.JogHud(vm: GameViewModel) {
     val laps = race?.laps ?: 3
     Column(Modifier.align(Alignment.TopStart), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Pill {
-            Text("⏱️", fontSize = 16.sp)
+            com.cozyhome.app.ui.components.GameIcon(com.cozyhome.app.ui.components.Ico.HOURGLASS, 17.dp, Coral)
             val tenths = hud.jogTenths
             Text("%02d:%02d.%d".format(tenths / 600, (tenths / 10) % 60, tenths % 10), color = Ink, fontWeight = FontWeight.Black, fontSize = 17.sp)
             Text(stringResource(R.string.jog_lap, hud.jogLap, laps), color = Coral, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)

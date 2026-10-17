@@ -1,6 +1,17 @@
 package com.cozyhome.game.game
 
+import com.cozyhome.game.activities.BugField
+import com.cozyhome.game.activities.Cookbook
+import com.cozyhome.game.activities.FishEvent
+import com.cozyhome.game.activities.FishSpecies
+import com.cozyhome.game.activities.FishingSession
+import com.cozyhome.game.activities.Rarity
 import com.cozyhome.game.anim.Anim
+import com.cozyhome.game.progress.CatchRecord
+import com.cozyhome.game.progress.Festival
+import com.cozyhome.game.progress.Festivals
+import com.cozyhome.game.progress.Progression
+import com.cozyhome.game.progress.QuestKind
 import com.cozyhome.game.anim.Animator
 import com.cozyhome.game.decor.Catalog
 import com.cozyhome.game.decor.Placement
@@ -69,8 +80,8 @@ class GameWorld(
     var decorZone = Zone.HOUSE
         private set
     var decorShift = 0f
-    private var savedPitch = 38f
-    private var savedDistance = 9.5f
+    private var savedPitch = 30f
+    private var savedDistance = 8f
     var bounceCombo = 0
         private set
 
@@ -95,6 +106,20 @@ class GameWorld(
     private var pendingKick: Pair<V3, Float>? = null
     private var kickDelay = 0f
     private var jogHeading = V2(-1f, 0f)
+    var fishing: FishingSession? = null
+        private set
+    val bugs = BugField(rng)
+    private val fishEvents = ArrayList<FishEvent>()
+    private var emote: Emote? = null
+    private var emoteTime = 0f
+    private var netTime = -1f
+    private var cookTime = -1f
+    private var shownFish: String? = null
+    private var shownFishTime = 0f
+    var hour = 9f
+        private set
+    var today = 0L
+        private set
 
     init {
         camera.snap(V3(pos.x, 1.1f, pos.z), 0f)
@@ -113,6 +138,21 @@ class GameWorld(
     fun step(input: FrameInput, dt: Float, now: Long, events: MutableList<WorldEvent>) {
         syncSolids()
         frame.clock += dt
+        hour = DayClock.hour(now, save.current.clockOffsetMs)
+        today = Rules.dayIndex(now, utcOffsetMs)
+        bugs.update(dt, hour, pos, vel.length > 4f)
+        if (emote != null) {
+            emoteTime += dt
+            if (mode != Mode.ACTION) emote = null
+        }
+        if (netTime >= 0f) netTime += dt
+        if (netTime > 0.8f) netTime = -1f
+        if (cookTime >= 0f) cookTime += dt
+        if (cookTime > 2.8f) cookTime = -1f
+        if (shownFish != null) {
+            shownFishTime += dt
+            if (shownFishTime > 2.6f) shownFish = null
+        }
         var extra = 0f
         when (mode) {
             Mode.FREE -> moveFree(input, dt, MAX_SPEED)
@@ -138,6 +178,7 @@ class GameWorld(
             Mode.DECOR -> vel = V2.ZERO
             Mode.BOUNCE -> extra = updateBounce(dt, events)
             Mode.SWING -> extra = updateSwing(dt)
+            Mode.FISH -> extra = updateFishing(input, dt, events)
         }
         animator.update(dt, vel.length, extra)
         interaction = if (mode == Mode.FREE) findInteraction(now) else null
@@ -205,6 +246,11 @@ class GameWorld(
         offer(pos.distanceTo(Lot.TRACK_START), 1.8f) { Interaction(Target.TrackStart, ActionKind.JOG) }
         offer(pos.distanceTo(Lot.MAILBOX), 1.7f) { Interaction(Target.Mailbox, ActionKind.GIFT) }
         offer(pos.distanceTo(Lot.GARDEN_TAP), 1.6f) { Interaction(Target.Tap, ActionKind.WATER_ALL) }
+        val pondGap = pos.distanceTo(Lot.POND.center) - Lot.POND.r
+        offer(pondGap, 1.5f) { Interaction(Target.Pond, ActionKind.FISH) }
+        bugs.nearest(pos, 1.6f)?.let { b ->
+            offer(V2(b.pos.x - pos.x, b.pos.z - pos.z).length - 0.2f, 1.6f) { Interaction(Target.BugTarget(b.id), ActionKind.CATCH_BUG, b.species.id) }
+        }
         for (item in s.placed) {
             val def = Catalog[item.itemId] ?: continue
             if (def.use == Use.NONE) continue
@@ -217,6 +263,7 @@ class GameWorld(
                     Use.LAMP -> if (item.on) ActionKind.LAMP_OFF else ActionKind.LAMP_ON
                     Use.BOUNCE -> ActionKind.BOUNCE
                     Use.SWING -> ActionKind.SWING
+                    Use.COOK -> ActionKind.COOK
                     Use.NONE -> return@offer null
                 }
                 Interaction(Target.Furniture(item.uid), kind, item.itemId)
@@ -230,6 +277,12 @@ class GameWorld(
             Mode.SIT, Mode.SLEEP -> { standUp(); return }
             Mode.BOUNCE -> { bounceTap = 0.32f; return }
             Mode.SWING -> { swingPush(); return }
+            Mode.FISH -> {
+                fishEvents.clear()
+                fishing?.tap(fishEvents)
+                forwardFish(events)
+                return
+            }
             Mode.BASKETBALL -> {
                 if (basketball?.release() == true) animator.play(Anim.SHOOT_RELEASE)
                 return
@@ -245,6 +298,7 @@ class GameWorld(
                 startAction(Anim.WATER, 1.1f) {
                     save.update { s -> s.copy(plots = s.plots.mapIndexed { idx, p -> if (idx == t.index) Garden.water(p, now) else p }) }
                     grant(0, 1, v3(Lot.PLOTS[t.index], 1.2f), events)
+                    progress(QuestKind.WATER, 1, events)
                 }
             }
             ActionKind.HARVEST -> (i.target as? Target.PlotSpot)?.let { t -> harvest(t.index, now, events) }
@@ -256,6 +310,9 @@ class GameWorld(
             ActionKind.WATER_ALL -> waterAll(now, events)
             ActionKind.SIT, ActionKind.SLEEP, ActionKind.BOUNCE, ActionKind.SWING ->
                 (i.target as? Target.Furniture)?.let { useFurniture(it.uid, i.kind, now, events) }
+            ActionKind.FISH -> startFishing()
+            ActionKind.CATCH_BUG -> (i.target as? Target.BugTarget)?.let { catchBug(it.id, events) }
+            ActionKind.COOK -> events += WorldEvent.OpenCook
             ActionKind.TV_ON, ActionKind.TV_OFF, ActionKind.LAMP_ON, ActionKind.LAMP_OFF ->
                 (i.target as? Target.Furniture)?.let { t ->
                     save.update { s -> s.copy(placed = s.placed.map { if (it.uid == t.uid) it.copy(on = !it.on) else it }) }
@@ -280,7 +337,10 @@ class GameWorld(
             )
         }
         events += WorldEvent.Reward(-crop.seedPrice, 0, v3(Lot.PLOTS[plotIndex], 1.2f))
-        startAction(Anim.HARVEST, 0.7f) { events += WorldEvent.Toast(Msg.PLANTED, cropId) }
+        startAction(Anim.HARVEST, 0.7f) {
+            events += WorldEvent.Toast(Msg.PLANTED, cropId)
+            progress(QuestKind.PLANT, 1, events)
+        }
     }
 
     private fun harvest(index: Int, now: Long, events: MutableList<WorldEvent>) {
@@ -293,10 +353,13 @@ class GameWorld(
                 s.copy(
                     plots = s.plots.mapIndexed { idx, p -> if (idx == index) Garden.harvest(p) else p },
                     stats = s.stats.copy(harvested = s.stats.harvested + 1),
+                    pantry = s.pantry + (crop.id to ((s.pantry[crop.id] ?: 0) + 2)),
+                    album = s.album.copy(crops = s.album.crops + (crop.id to ((s.album.crops[crop.id] ?: 0) + 1))),
                 )
             }
             grant(crop.sellPrice, crop.xp, v3(Lot.PLOTS[index], 1.3f), events)
             events += WorldEvent.Toast(Msg.HARVESTED, crop.id)
+            progress(QuestKind.HARVEST, 1, events)
         }
     }
 
@@ -311,6 +374,7 @@ class GameWorld(
             save.update { s -> s.copy(plots = s.plots.mapIndexed { idx, p -> if (idx in thirsty) Garden.water(p, now) else p }) }
             grant(0, thirsty.size, v3(Lot.GARDEN_TAP, 1.4f), events)
             events += WorldEvent.Toast(Msg.WATERED_ALL, thirsty.size.toString())
+            progress(QuestKind.WATER, thirsty.size, events)
         }
     }
 
@@ -434,6 +498,7 @@ class GameWorld(
             if (bounceTap > 0f) {
                 bounceTap = 0f
                 bounceCombo++
+                progress(QuestKind.BOUNCE, 1, events)
                 bounceV = (abs(bounceV) * 0.95f + 1.4f).coerceAtMost(10.5f)
                 if (bounceXp < 20) {
                     bounceXp++
@@ -590,6 +655,11 @@ class GameWorld(
         }
         save.update { it.copy(stats = newStats.copy(gamesPlayed = newStats.gamesPlayed + 1)) }
         grant(coins, 8 + e.score, null, events)
+        when (e.kind) {
+            SportKind.BASKETBALL -> progress(QuestKind.BASKET, e.score, events)
+            SportKind.SOCCER -> progress(QuestKind.SOCCER, e.score, events)
+            SportKind.JOGGING -> progress(QuestKind.JOG, 1, events)
+        }
         events += WorldEvent.SportResult(e.kind, e.score, e.detail, coins, best, e.millis)
     }
 
@@ -618,6 +688,7 @@ class GameWorld(
 
     fun enterDecor(zone: Zone) {
         val wasDecor = mode == Mode.DECOR
+        stopFishing()
         if (mode == Mode.SIT || mode == Mode.SLEEP || mode == Mode.BOUNCE || mode == Mode.SWING) standUp()
         quitSport()
         if (!wasDecor) {
@@ -702,8 +773,178 @@ class GameWorld(
         frame.roofHidden = roofTimer > 0f
     }
 
+    private fun rodTip(): V3 {
+        val t = com.cozyhome.game.models.ActivityModels.ROD_TIP
+        val s = sin(yaw * DEG)
+        val c = cos(yaw * DEG)
+        return V3(pos.x + t.x * c + t.z * s, t.y, pos.z - t.x * s + t.z * c)
+    }
+
+    private fun startFishing() {
+        val c = Lot.POND.center
+        val dir = (c - pos).normalized()
+        yaw = yawOf(dir)
+        val target = V3(c.x - dir.x * Lot.POND.r * 0.35f, 0.02f, c.z - dir.z * Lot.POND.r * 0.35f)
+        fishing = FishingSession(rng, hour, rodTip(), target)
+        mode = Mode.FISH
+        vel = V2.ZERO
+        animator.play(Anim.FISH_CAST)
+    }
+
+    fun stopFishing() {
+        if (mode != Mode.FISH) return
+        fishing = null
+        mode = Mode.FREE
+        animator.play(Anim.IDLE)
+    }
+
+    private fun updateFishing(input: FrameInput, dt: Float, events: MutableList<WorldEvent>): Float {
+        val s = fishing ?: run { mode = Mode.FREE; return 0f }
+        vel = V2.ZERO
+        fishEvents.clear()
+        s.update(dt, input.hold, fishEvents)
+        forwardFish(events)
+        animator.play(
+            when (s.phase) {
+                FishingSession.Phase.CAST -> Anim.FISH_CAST
+                FishingSession.Phase.WAIT, FishingSession.Phase.BITE -> Anim.FISH_HOLD
+                FishingSession.Phase.REEL -> Anim.FISH_REEL
+                FishingSession.Phase.CAUGHT -> Anim.SHOW
+                FishingSession.Phase.ESCAPED, FishingSession.Phase.SNAPPED -> Anim.SAD
+            }
+        )
+        if (s.done) stopFishing()
+        return s.tension
+    }
+
+    private fun forwardFish(events: MutableList<WorldEvent>) {
+        for (e in fishEvents) {
+            events += WorldEvent.Fish(e)
+            when (e) {
+                is FishEvent.Caught -> onFishCaught(e.species, e.cm, events)
+                FishEvent.Escaped -> events += WorldEvent.Toast(Msg.FISH_ESCAPED)
+                FishEvent.Snapped -> events += WorldEvent.Toast(Msg.FISH_SNAPPED)
+                FishEvent.TooEarly -> events += WorldEvent.Toast(Msg.TOO_EARLY)
+                else -> Unit
+            }
+        }
+        fishEvents.clear()
+    }
+
+    private fun onFishCaught(sp: FishSpecies, cm: Int, events: MutableList<WorldEvent>) {
+        val prev = save.current.album.fish[sp.id]
+        val record = prev == null || cm > prev.bestCm
+        save.update { s ->
+            val r = s.album.fish[sp.id] ?: CatchRecord()
+            s.copy(album = s.album.copy(fish = s.album.fish + (sp.id to CatchRecord(r.count + 1, maxOf(r.bestCm, cm)))))
+        }
+        val sizeBonus = if (sp.maxCm > sp.minCm) (cm - sp.minCm).toFloat() / (sp.maxCm - sp.minCm) else 0f
+        grant((sp.price * (1f + sizeBonus * 0.5f)).toInt(), sp.xp, rodTip(), events)
+        if (!sp.junk) progress(QuestKind.FISH, 1, events)
+        if (sp.rarity >= Rarity.RARE && !sp.junk) progress(QuestKind.RARE_FISH, 1, events)
+        if (festival != null && sp.rarity >= Rarity.RARE) addTokens(1, events)
+        shownFish = sp.id
+        shownFishTime = 0f
+        events += WorldEvent.FishCaught(sp.id, cm, record, prev == null)
+    }
+
+    private fun catchBug(id: Int, events: MutableList<WorldEvent>) {
+        val bug = bugs.bugs.firstOrNull { it.id == id } ?: return
+        face(bug.pos.xz)
+        netTime = 0f
+        startAction(Anim.NET, 0.6f) {
+            if (bugs.tryCatch(bug)) {
+                val sp = bug.species
+                val first = sp.id !in save.current.album.bugs
+                save.update { s -> s.copy(album = s.album.copy(bugs = s.album.bugs + (sp.id to ((s.album.bugs[sp.id] ?: 0) + 1)))) }
+                grant(sp.price, sp.xp, v3(bug.pos.xz, 1.6f), events)
+                progress(QuestKind.BUG, 1, events)
+                if (festival != null && sp.rarity >= Rarity.RARE) addTokens(1, events)
+                events += WorldEvent.BugCaught(sp.id, first)
+            } else {
+                events += WorldEvent.Toast(Msg.BUG_MISSED)
+            }
+        }
+    }
+
+    fun cook(recipeId: String, events: MutableList<WorldEvent>) {
+        val r = Cookbook[recipeId] ?: return
+        val s = save.current
+        if (!Cookbook.canCook(r, s.pantry)) {
+            events += WorldEvent.Toast(Msg.MISSING_INGREDIENTS)
+            return
+        }
+        val stove = s.placed.filter { Catalog[it.itemId]?.use == Use.COOK }.minByOrNull { V2(it.x, it.z).distanceTo(pos) }
+        stove?.let { face(V2(it.x, it.z)) }
+        save.update { it.copy(pantry = Cookbook.consume(r, it.pantry)) }
+        cookTime = 0f
+        startAction(Anim.COOK, 2.4f) {
+            val first = r.id !in save.current.album.dishes
+            save.update { cur -> cur.copy(album = cur.album.copy(dishes = cur.album.dishes + (r.id to ((cur.album.dishes[r.id] ?: 0) + 1)))) }
+            grant(r.coins, r.xp, v3(pos, 1.8f), events)
+            progress(QuestKind.COOK, 1, events)
+            events += WorldEvent.Cooked(r.id, first)
+        }
+    }
+
+    fun emote(e: Emote) {
+        if (mode != Mode.FREE) return
+        val (anim, time) = when (e) {
+            Emote.WAVE -> Anim.WAVE to 1.8f
+            Emote.CHEER -> Anim.CHEER to 1.8f
+            Emote.DANCE -> Anim.DANCE to 3.2f
+            Emote.CLAP -> Anim.CLAP to 1.8f
+            Emote.LAUGH -> Anim.LAUGH to 1.8f
+            Emote.HEART -> Anim.WAVE to 1.8f
+            Emote.THINK -> Anim.THINK to 2.2f
+            Emote.SAD -> Anim.SAD to 1.8f
+        }
+        startAction(anim, time) {}
+        emote = e
+        emoteTime = 0f
+    }
+
+    val festival: Festival?
+        get() {
+            val forced = save.current.festivalDebug
+            if (forced.isNotEmpty()) return Festival.entries.firstOrNull { it.name == forced }
+            return Festivals.active(today)?.festival
+        }
+
+    fun addTokens(n: Int, events: MutableList<WorldEvent>) {
+        save.update { it.copy(tokens = it.tokens + n) }
+        events += WorldEvent.Toast(Msg.FESTIVAL_TOKENS, n.toString())
+    }
+
+    fun progress(kind: QuestKind, n: Int, events: MutableList<WorldEvent>) {
+        if (n <= 0) return
+        val before = save.current.daily
+        val after = Progression.advance(before, kind, n)
+        if (after == before) return
+        save.update { it.copy(daily = after) }
+        after.quests.forEachIndexed { i, q ->
+            val was = before.quests.getOrNull(i)
+            if (q.done && was != null && !was.done) events += WorldEvent.Toast(Msg.QUEST_DONE, q.kind)
+        }
+    }
+
     private fun writeFrame() {
         frame.position = V3(visualPos.x, rootY, visualPos.z)
+        val f = fishing
+        frame.rodVisible = f != null
+        frame.rodTip = f?.rodTip ?: rodTip()
+        frame.bobberVisible = f != null && f.phase != FishingSession.Phase.CAUGHT
+        frame.bobber = f?.bobber ?: frame.rodTip
+        frame.fishTension = f?.tension ?: 0f
+        frame.fishProgress = f?.progress ?: 0f
+        frame.fishPhase = f?.phase?.ordinal ?: -1
+        frame.fishShown = shownFish
+        frame.netSwing = netTime
+        frame.emote = emote
+        frame.emoteTime = emoteTime
+        frame.cookTime = cookTime
+        frame.bugs.clear()
+        for (b in bugs.bugs) frame.bugs += BugView(b.id, b.species.id, b.pos, b.heading, b.flap)
         frame.yaw = yaw
         frame.eye = camera.eye
         frame.target = camera.target

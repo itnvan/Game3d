@@ -9,6 +9,7 @@ import com.cozyhome.game.models.Outfit
 import io.github.sceneview.SceneScope
 import io.github.sceneview.math.Position
 import io.github.sceneview.math.Rotation
+import io.github.sceneview.math.Scale
 import io.github.sceneview.node.Node
 
 class RigRefs {
@@ -16,6 +17,7 @@ class RigRefs {
     var tilt: Node? = null
     var body: Node? = null
     var head: Node? = null
+    var eyes: Node? = null
     var armL: Node? = null
     var armR: Node? = null
     var legL: Node? = null
@@ -33,6 +35,7 @@ class RigRefs {
             it.rotation = Rotation(x = p.lean, z = p.roll)
         }
         head?.rotation = Rotation(x = p.headPitch, y = p.headYaw)
+        eyes?.scale = Scale(1f, 1f - 0.92f * p.blink, 1f)
         armL?.rotation = Rotation(x = -p.armLFwd, z = -p.armLOut)
         armR?.rotation = Rotation(x = -p.armRFwd, z = p.armROut)
         legL?.rotation = Rotation(x = -p.legLFwd)
@@ -44,7 +47,7 @@ class RigRefs {
     }
 
     fun clear() {
-        root = null; tilt = null; body = null; head = null
+        root = null; tilt = null; body = null; head = null; eyes = null
         armL = null; armR = null; legL = null; legR = null; prop = null
     }
 }
@@ -53,6 +56,7 @@ class RigRefs {
 fun SceneScope.CharacterRig(outfit: Outfit, refs: RigRefs, keyPrefix: String, withCan: Boolean = false, gloves: Boolean = false) {
     val torso = rememberMeshInstance(modelLoader, "$keyPrefix-torso-$outfit") { CharacterModel.torso(outfit) }
     val head = rememberMeshInstance(modelLoader, "$keyPrefix-head-$outfit") { CharacterModel.head(outfit) }
+    val eyes = rememberMeshInstance(modelLoader, "$keyPrefix-eyes-$outfit") { CharacterModel.eyes(outfit) }
     val armL = rememberMeshInstance(modelLoader, "$keyPrefix-armL-$outfit") { CharacterModel.arm(outfit) }
     val armR = rememberMeshInstance(modelLoader, "$keyPrefix-armR-$outfit") { CharacterModel.arm(outfit) }
     val legL = rememberMeshInstance(modelLoader, "$keyPrefix-legL-$outfit") { CharacterModel.leg(outfit) }
@@ -67,6 +71,9 @@ fun SceneScope.CharacterRig(outfit: Outfit, refs: RigRefs, keyPrefix: String, wi
                 torso?.let { Part(it) }
                 Node(position = Position(0f, CharacterModel.NECK, 0f), apply = { refs.head = this }) {
                     head?.let { Part(it) }
+                    Node(position = Position(0f, CharacterModel.EYE_Y, 0f), apply = { refs.eyes = this }) {
+                        eyes?.let { Part(it, shadow = false) }
+                    }
                 }
                 Node(position = Position(-CharacterModel.SHOULDER_X, CharacterModel.SHOULDER_Y, 0f), apply = { refs.armL = this }) {
                     armL?.let { Part(it) }

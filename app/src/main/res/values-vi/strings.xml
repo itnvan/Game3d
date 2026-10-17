@@ -14,6 +14,10 @@
     <string name="create_pants">Quần</string>
     <string name="create_shoes">Giày</string>
     <string name="create_hat">Mũ</string>
+    <string name="create_top">Áo</string>
+    <string name="create_bottom">Quần / váy</string>
+    <string name="create_eyes">Mắt</string>
+    <string name="create_eye_color">Màu mắt</string>
     <string name="create_random">Ngẫu nhiên</string>
     <string name="create_start">Vào nhà thôi!</string>
     <string name="create_save">Lưu</string>
@@ -194,4 +198,12 @@
     <string name="item_fruit_tree">Cây ăn quả</string>
     <string name="item_bbq">Bếp nướng</string>
     <string name="item_pool">Hồ bơi mini</string>
+    <string-array name="loading_tips">
+        <item>Tưới cây mỗi ngày để rau lớn nhanh hơn</item>
+        <item>Ra hồ lúc chiều tối để gặp cá hiếm</item>
+        <item>Chạm giữ món đồ để di chuyển và xoay</item>
+        <item>Ghé chơi mỗi ngày để nhận quà miễn phí</item>
+        <item>Lễ hội thay đổi theo lịch thật</item>
+        <item>Nấu món từ rau nhà trồng để được thưởng nhiều hơn</item>
+    </string-array>
 </resources>

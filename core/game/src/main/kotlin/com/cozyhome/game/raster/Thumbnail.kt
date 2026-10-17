@@ -2,7 +2,11 @@ package com.cozyhome.game.raster
 
 import com.cozyhome.game.math.DEG
 import com.cozyhome.game.mesh.Mesh
+import com.cozyhome.game.mesh.Tex
+import com.cozyhome.game.mesh.TexImage
+import com.cozyhome.game.mesh.TextureGen
 import kotlin.math.cos
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -26,7 +30,8 @@ object Thumbnail {
 
         var minX = Float.MAX_VALUE; var maxX = -Float.MAX_VALUE
         var minY = Float.MAX_VALUE; var maxY = -Float.MAX_VALUE
-        for (p in mesh.parts) {
+        val parts = mesh.parts.filter { !(it.mat.blend && it.mat.unlit) }.sortedBy { if (it.mat.blend || it.mat.alpha < 1f) 1 else 0 }
+        for (p in parts) {
             var i = 0
             while (i < p.positions.size) {
                 val x = p.positions[i]; val y = p.positions[i + 1]; val z = p.positions[i + 2]
@@ -47,7 +52,8 @@ object Thumbnail {
         val ll = sqrt(lx * lx + ly * ly + lz * lz)
         val light = floatArrayOf(lx / ll, ly / ll, lz / ll)
 
-        for (p in mesh.parts) {
+        for (p in parts) {
+            val tex = if (p.mat.tex != Tex.NONE) TextureGen.image(p.mat.tex) else null
             val n = p.vertexCount
             val sx = FloatArray(n); val syy = FloatArray(n); val sz = FloatArray(n)
             val shade = FloatArray(n * 3)
@@ -73,7 +79,8 @@ object Thumbnail {
                     shade[v * 3 + c] = value
                 }
             }
-            val a = p.mat.alpha
+            val baseAlpha = p.mat.alpha
+            val translucent = p.mat.blend || baseAlpha < 0.99f
             var t = 0
             while (t < p.indices.size) {
                 val i0 = p.indices[t]; val i1 = p.indices[t + 1]; val i2 = p.indices[t + 2]
@@ -100,10 +107,20 @@ object Thumbnail {
                         val d = w0 * sz[i0] + w1 * sz[i1] + w2 * sz[i2]
                         val idx = py * s + px
                         if (d <= depth[idx]) continue
-                        val r = w0 * shade[i0 * 3] + w1 * shade[i1 * 3] + w2 * shade[i2 * 3]
-                        val g = w0 * shade[i0 * 3 + 1] + w1 * shade[i1 * 3 + 1] + w2 * shade[i2 * 3 + 1]
-                        val b = w0 * shade[i0 * 3 + 2] + w1 * shade[i1 * 3 + 2] + w2 * shade[i2 * 3 + 2]
-                        if (a >= 0.99f) {
+                        var r = w0 * shade[i0 * 3] + w1 * shade[i1 * 3] + w2 * shade[i2 * 3]
+                        var g = w0 * shade[i0 * 3 + 1] + w1 * shade[i1 * 3 + 1] + w2 * shade[i2 * 3 + 1]
+                        var b = w0 * shade[i0 * 3 + 2] + w1 * shade[i1 * 3 + 2] + w2 * shade[i2 * 3 + 2]
+                        var a = baseAlpha
+                        if (tex != null) {
+                            val tu = w0 * p.uvs[i0 * 2] + w1 * p.uvs[i1 * 2] + w2 * p.uvs[i2 * 2]
+                            val tv = w0 * p.uvs[i0 * 2 + 1] + w1 * p.uvs[i1 * 2 + 1] + w2 * p.uvs[i2 * 2 + 1]
+                            val ti = texel(tex, tu, tv)
+                            r *= LINEAR[tex.rgba[ti].toInt() and 0xFF]
+                            g *= LINEAR[tex.rgba[ti + 1].toInt() and 0xFF]
+                            b *= LINEAR[tex.rgba[ti + 2].toInt() and 0xFF]
+                            if (p.mat.blend) a *= (tex.rgba[ti + 3].toInt() and 0xFF) / 255f
+                        }
+                        if (!translucent) {
                             depth[idx] = d
                             color[idx * 3] = r; color[idx * 3 + 1] = g; color[idx * 3 + 2] = b
                             alpha[idx] = 1f
@@ -133,6 +150,17 @@ object Thumbnail {
             out[y * size + x] = (to8(ar, false) shl 24) or (to8(r / al) shl 16) or (to8(g / al) shl 8) or to8(b / al)
         }
         return out
+    }
+
+    private val LINEAR = FloatArray(256) { i ->
+        val c = i / 255f
+        if (c <= 0.04045f) c / 12.92f else ((c + 0.055f) / 1.055f).pow(2.4f)
+    }
+
+    private fun texel(tex: TexImage, u: Float, v: Float): Int {
+        val x = Math.floorMod(floor(u * tex.size).toInt(), tex.size)
+        val y = Math.floorMod(floor(v * tex.size).toInt(), tex.size)
+        return (y * tex.size + x) * 4
     }
 
     private fun to8(v: Float, gamma: Boolean = true): Int {

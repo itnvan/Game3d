@@ -45,13 +45,17 @@ object Palette {
     val CORAL = rgb(0xFB7185)
     val NAVY = rgb(0x4B5D9E)
 
-    val SKIN = listOf(rgb(0xFFE0C7), rgb(0xF6C9A8), rgb(0xE8B08A), rgb(0xC98E66), rgb(0xA0694A), rgb(0x7A4E36))
-    val HAIR = listOf(rgb(0x2E2433), rgb(0x6B3E2E), rgb(0xA8653A), rgb(0xF2C46B), rgb(0xFF8FB1), rgb(0x7AB8FF), rgb(0xB79CFF), rgb(0xF0F0F0))
+    val SKIN = listOf(rgb(0xFFE6D5), rgb(0xFAD3BC), rgb(0xEDB996), rgb(0xD39A72), rgb(0xA8704F), rgb(0x7C4F38))
+    val HAIR = listOf(rgb(0x2E2433), rgb(0x6B3E2E), rgb(0xA8653A), rgb(0xF2C46B), rgb(0xFF8FB1), rgb(0x7AB8FF), rgb(0xB79CFF), rgb(0xF0F0F0), rgb(0xE5533D), rgb(0x5FD3A8))
+    val EYES = listOf(rgb(0x7A4A2E), rgb(0x3A2A40), rgb(0x3D8BFF), rgb(0x34B37A), rgb(0x9B6BFF), rgb(0xE59A3A), rgb(0xFF6FA5))
     val SHIRT = listOf(rgb(0xFFD166), rgb(0x6EE7B7), rgb(0x7DD3FC), rgb(0xFF8FA3), rgb(0xC4B5FD), rgb(0xFFFFFF), rgb(0xFF9F43), rgb(0x34D399))
     val PANTS = listOf(rgb(0x5B7FD6), rgb(0x3B3355), rgb(0xF5E2B8), rgb(0x8E6CEF), rgb(0x56B98A), rgb(0xE86A7A))
     val SHOES = listOf(rgb(0xFFFFFF), rgb(0xFF6B6B), rgb(0x3B3355), rgb(0xFFC94D), rgb(0x56CCF2))
-    const val HAIR_STYLES = 5
-    const val HATS = 4
+    const val HAIR_STYLES = 8
+    const val HATS = 8
+    const val TOPS = 6
+    const val BOTTOMS = 3
+    const val EYE_STYLES = 3
 
     val WALLS = listOf(rgb(0xFFF3DC), rgb(0xD8F5E6), rgb(0xDDF0FF), rgb(0xFFE1E6), rgb(0xEDE4FF), rgb(0xFFEBC2), rgb(0xE9F0D8))
     val FLOORS = listOf(

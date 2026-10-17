@@ -14,6 +14,10 @@
     <string name="create_pants">Pants</string>
     <string name="create_shoes">Shoes</string>
     <string name="create_hat">Hat</string>
+    <string name="create_top">Top</string>
+    <string name="create_bottom">Bottom</string>
+    <string name="create_eyes">Eyes</string>
+    <string name="create_eye_color">Eye color</string>
     <string name="create_random">Surprise me</string>
     <string name="create_start">Let\'s go!</string>
     <string name="create_save">Save</string>
@@ -194,4 +198,12 @@
     <string name="item_fruit_tree">Fruit tree</string>
     <string name="item_bbq">BBQ grill</string>
     <string name="item_pool">Kiddie pool</string>
+    <string-array name="loading_tips">
+        <item>Water your crops daily so they grow faster</item>
+        <item>Visit the pond at dusk for rare fish</item>
+        <item>Hold an item to move and rotate it</item>
+        <item>Come back every day for a free gift</item>
+        <item>Festivals change with the real calendar</item>
+        <item>Cook your harvest for bigger rewards</item>
+    </string-array>
 </resources>

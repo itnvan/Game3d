@@ -11,6 +11,8 @@ import com.cozyhome.game.math.yawOf
 import com.cozyhome.game.sports.JogRace
 import com.cozyhome.game.world.Lot
 import com.cozyhome.game.world.SkyState
+import com.cozyhome.game.math.smoothstep
+import com.cozyhome.app.render.TextureBank
 import com.google.android.filament.View
 import io.github.sceneview.RenderInvalidator
 import io.github.sceneview.environment.Environment
@@ -24,6 +26,8 @@ import io.github.sceneview.node.LightNode
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
+
+private val DAY_SKY_LINEAR = com.cozyhome.game.mesh.rgb(0x9FDCF7).linear()
 
 class FrameApplier(private val refs: SceneRefs) {
     private var clock = 0f
@@ -91,7 +95,6 @@ class FrameApplier(private val refs: SceneRefs) {
             if (p > 0f) n.scale = Scale(1f + 0.4f * p, 1f, 1f) else if (n.scale.x != 1f) n.scale = Scale(1f)
         }
 
-        refs.clouds?.rotation = Rotation(y = clock * 0.6f)
         refs.scenery?.let { if (it.isVisible == refs.sceneryHidden) it.isVisible = !refs.sceneryHidden }
 
         val jog = world.jog
@@ -183,15 +186,32 @@ class FrameApplier(private val refs: SceneRefs) {
         }
     }
 
-    fun applySky(sky: SkyState, sun: LightNode, fill: LightNode, environment: Environment, view: View, invalidator: RenderInvalidator, baseIbl: Float) {
+    private var skyNight: Boolean? = null
+
+    fun applySky(sky: SkyState, sun: LightNode, fill: LightNode, environment: Environment, view: View, invalidator: RenderInvalidator, baseIbl: Float, bank: TextureBank?) {
         val lin = sky.sky.linear()
         environment.skybox?.setColor(lin[0], lin[1], lin[2], 1f)
+        refs.sky?.materialInstances?.firstOrNull()?.let { mi ->
+            val night = sky.night > 0.55f
+            if (bank != null && bank.ready && skyNight != night) {
+                bank.setSky(mi, night)
+                skyNight = night
+            }
+            val day = DAY_SKY_LINEAR
+            val k = if (night) 0.85f else 1f - 0.45f * sky.night
+            val tr = if (night) 0.75f else (lin[0] / day[0]).coerceIn(0.3f, 1.8f)
+            val tg = if (night) 0.85f else (lin[1] / day[1]).coerceIn(0.3f, 1.4f)
+            val tb = if (night) 1.1f else (lin[2] / day[2]).coerceIn(0.3f, 1.4f)
+            mi.setParameter("baseColorFactor", tr * k, tg * k, tb * k, 1f)
+        }
         environment.indirectLight?.intensity = baseIbl * sky.ambient
         val sc = sky.sunColor.linear()
         sun.color = Color(sc[0], sc[1], sc[2], 1f)
         sun.intensity = sky.sunIntensity
         sun.lightDirection = Direction(sky.sunDirection.x, sky.sunDirection.y, sky.sunDirection.z)
-        fill.intensity = 2_500f + 3_500f * (1f - sky.night)
+        fill.intensity = 600f + 4_400f * (1f - sky.night)
+        val lampLumens = smoothstep(0.35f, 0.85f, sky.night) * 24_000f
+        for (l in refs.lamps) l?.let { if (it.intensity != lampLumens) it.intensity = lampLumens }
         view.fogOptions = view.fogOptions.apply {
             enabled = true
             distance = 38f
@@ -200,6 +220,7 @@ class FrameApplier(private val refs: SceneRefs) {
             heightFalloff = 0.06f
             density = 0.018f
             color = floatArrayOf(lin[0], lin[1], lin[2])
+            cutOffDistance = 220f
         }
         invalidator.requestRender()
     }

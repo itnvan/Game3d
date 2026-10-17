@@ -58,6 +58,39 @@ class GlbTest {
     }
 
     @Test
+    fun texturedMaterialsEmbedPngImages() {
+        val m = mesh {
+            withMat(Mat.WOOD) { block(0f, 0f, 0f, 1f, 1f, 1f, rgb(0xC08050)) }
+            withMat(Mat.FABRIC) { box(0f, 2f, 0f, 1f, 1f, 1f, rgb(0x4080C0)) }
+            withMat(Mat.WOOD_FINE) { box(2f, 0f, 0f, 1f, 1f, 1f, rgb(0x806040)) }
+            shadowBlob(0f, 0f, 1f, 1f)
+        }
+        val bytes = Glb.encode(m)
+        val b = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+        val jsonLen = b.getInt(12)
+        val json = Json.parseToJsonElement(String(bytes, 20, jsonLen, Charsets.UTF_8).trim()).jsonObject
+        val images = json["images"]!!.jsonArray
+        assertEquals(3, images.size)
+        assertEquals(3, json["textures"]!!.jsonArray.size)
+        val views = json["bufferViews"]!!.jsonArray
+        for (img in images) {
+            val view = views[img.jsonObject["bufferView"]!!.jsonPrimitive.int].jsonObject
+            assertTrue("image view must not have a target", "target" !in view)
+            val off = 28 + jsonLen + view["byteOffset"]!!.jsonPrimitive.int
+            assertEquals(0x89.toByte(), bytes[off])
+            assertEquals('P'.code.toByte(), bytes[off + 1])
+        }
+        val prims = json["meshes"]!!.jsonArray[0].jsonObject["primitives"]!!.jsonArray
+        val mats = json["materials"]!!.jsonArray
+        for (p in prims) {
+            val mat = mats[p.jsonObject["material"]!!.jsonPrimitive.int].jsonObject
+            val hasTex = "baseColorTexture" in mat["pbrMetallicRoughness"]!!.jsonObject
+            assertEquals(hasTex, "TEXCOORD_0" in p.jsonObject["attributes"]!!.jsonObject)
+        }
+        assertTrue(mats.any { it.jsonObject["alphaMode"]?.jsonPrimitive?.content == "BLEND" })
+    }
+
+    @Test
     fun boxHasOutwardNormals() {
         val m = mesh { block(-1f, -1f, -1f, 1f, 1f, 1f, rgb(0xFFFFFF)) }
         val p = m.parts.single()
@@ -86,6 +119,18 @@ class GlbTest {
             mesh { cylinder(0f, -1f, 0f, 1f, 2f, rgb(0xFFFFFF)) },
             mesh { blob(0f, 0f, 0f, 1f, 1f, 1f, rgb(0xFFFFFF)) },
             mesh { group { rotateY(30f); scale(-1f, 1f, 1f); block(-1f, -1f, -1f, 1f, 1f, 1f, rgb(0xFFFFFF)) } },
+            mesh { puff(0f, 0f, 0f, 1f, 0.8f, 1.2f, rgb(0xFFFFFF), seed = 4) },
+            mesh { puff(0f, 0f, 0f, 1f, 1f, 1f, rgb(0xFFFFFF), floorY = -0.6f) },
+            mesh { arc(0f, 0f, 0f, 1f, 0.1f, 20f, 160f, rgb(0xFFFFFF)) },
+            mesh { torus(0f, 0f, 0f, 1f, 0.2f, rgb(0xFFFFFF)) },
+            mesh { capsule(0f, 0f, 0f, 0.3f, 1.2f, rgb(0xFFFFFF)) },
+            mesh { warpSphere(rgb(0xFFFFFF)) { x, y, z -> com.cozyhome.game.math.V3(x * 1.2f, y * (1f + 0.2f * x), z * 0.8f) } },
+            mesh {
+                tube(
+                    listOf(com.cozyhome.game.math.V3(0f, 0f, 0f), com.cozyhome.game.math.V3(0.3f, 0.5f, 0.1f), com.cozyhome.game.math.V3(0.2f, 1f, 0.4f)),
+                    { 0.1f * (1f - it * 0.5f) }, rgb(0xFFFFFF), flatten = 0.5f, caps = false,
+                )
+            },
         )
         for (m in shapes) {
             val p = m.parts.single()

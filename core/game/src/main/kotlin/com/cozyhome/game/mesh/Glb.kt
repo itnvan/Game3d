@@ -14,7 +14,9 @@ object Glb {
     private const val ARRAY_BUFFER = 34962
     private const val ELEMENT_ARRAY_BUFFER = 34963
 
-    fun encode(mesh: Mesh, name: String = "mesh"): ByteArray {
+    fun primitiveTextures(mesh: Mesh): List<Tex> = mesh.parts.filter { it.indices.isNotEmpty() }.map { it.mat.tex }
+
+    fun encode(mesh: Mesh, name: String = "mesh", external: Boolean = false): ByteArray {
         val parts = mesh.parts.filter { it.indices.isNotEmpty() }
         val bin = ByteArrayOutputStream()
         val views = StringBuilder()
@@ -25,15 +27,20 @@ object Glb {
         var accessorCount = 0
         var usesUnlit = false
         var usesStrength = false
+        var usesExternal = false
 
-        fun addView(bytes: ByteArray, target: Int): Int {
+        fun addView(bytes: ByteArray, target: Int?): Int {
             while (bin.size() % 4 != 0) bin.write(0)
             val offset = bin.size()
             bin.write(bytes)
             if (viewCount > 0) views.append(',')
-            views.append("{\"buffer\":0,\"byteOffset\":$offset,\"byteLength\":${bytes.size},\"target\":$target}")
+            val targetJson = if (target != null) ",\"target\":$target" else ""
+            views.append("{\"buffer\":0,\"byteOffset\":$offset,\"byteLength\":${bytes.size}$targetJson}")
             return viewCount++
         }
+
+        val textureIndex = LinkedHashMap<Tex, Int>()
+        fun textureOf(tex: Tex): Int = textureIndex.getOrPut(tex) { textureIndex.size }
 
         fun addAccessor(view: Int, componentType: Int, count: Int, type: String, extra: String = ""): Int {
             if (accessorCount > 0) accessors.append(',')
@@ -51,13 +58,21 @@ object Glb {
             } else {
                 addAccessor(addView(uints(part.indices), ELEMENT_ARRAY_BUFFER), UINT, part.indices.size, "SCALAR")
             }
-            if (index > 0) primitives.append(',')
-            primitives.append("{\"attributes\":{\"POSITION\":$pos,\"NORMAL\":$nrm,\"COLOR_0\":$col},\"indices\":$idx,\"material\":$index,\"mode\":4}")
-
             val m = part.mat
+            val textured = m.tex != Tex.NONE
+            val uv = if (textured) addAccessor(addView(floats(part.uvs), ARRAY_BUFFER), FLOAT, count, "VEC2") else -1
+            if (index > 0) primitives.append(',')
+            val uvJson = if (textured) ",\"TEXCOORD_0\":$uv" else ""
+            primitives.append("{\"attributes\":{\"POSITION\":$pos,\"NORMAL\":$nrm,\"COLOR_0\":$col$uvJson},\"indices\":$idx,\"material\":$index,\"mode\":4}")
+
             if (index > 0) materials.append(',')
             materials.append("{\"pbrMetallicRoughness\":{\"baseColorFactor\":[1,1,1,${num(m.alpha)}],")
+            if (textured) materials.append("\"baseColorTexture\":{\"index\":${if (external) 0 else textureOf(m.tex)}},")
             materials.append("\"metallicFactor\":${num(m.metallic)},\"roughnessFactor\":${num(m.roughness)}}")
+            if (textured && external && m.tex.normalScale > 0f && !m.unlit) {
+                materials.append(",\"normalTexture\":{\"index\":1,\"scale\":${num(m.tex.normalScale)}}")
+            }
+            if (textured && external) usesExternal = true
             val ext = ArrayList<String>()
             m.emissive?.let { e ->
                 val lin = e.linear()
@@ -71,10 +86,19 @@ object Glb {
                 ext += "\"KHR_materials_unlit\":{}"
                 usesUnlit = true
             }
-            if (m.alpha < 1f) materials.append(",\"alphaMode\":\"BLEND\"")
+            if (m.alpha < 1f || m.blend) materials.append(",\"alphaMode\":\"BLEND\"")
             if (m.doubleSided) materials.append(",\"doubleSided\":true")
             if (ext.isNotEmpty()) materials.append(",\"extensions\":{${ext.joinToString(",")}}")
             materials.append('}')
+        }
+        val images = StringBuilder()
+        val textures = StringBuilder()
+        val imagePngs = if (usesExternal) listOf(PLACEHOLDER_ALBEDO, PLACEHOLDER_NORMAL) else textureIndex.keys.map { TextureGen.png(it) }
+        imagePngs.forEachIndexed { i, png ->
+            val view = addView(png, null)
+            if (i > 0) { images.append(','); textures.append(',') }
+            images.append("{\"bufferView\":$view,\"mimeType\":\"image/png\"}")
+            textures.append("{\"sampler\":0,\"source\":$i}")
         }
         while (bin.size() % 4 != 0) bin.write(0)
         val binBytes = bin.toByteArray()
@@ -90,6 +114,10 @@ object Glb {
             append("\"nodes\":[{\"mesh\":0,\"name\":\"${name.replace("\"", "")}\"}],")
             append("\"meshes\":[{\"primitives\":[$primitives]}],")
             append("\"materials\":[$materials],")
+            if (imagePngs.isNotEmpty()) {
+                append("\"images\":[$images],\"textures\":[$textures],")
+                append("\"samplers\":[{\"magFilter\":9729,\"minFilter\":9987,\"wrapS\":10497,\"wrapT\":10497}],")
+            }
             append("\"accessors\":[$accessors],")
             append("\"bufferViews\":[$views],")
             append("\"buffers\":[{\"byteLength\":${binBytes.size}}]}")
@@ -105,6 +133,9 @@ object Glb {
         out.putInt(binBytes.size).putInt(CHUNK_BIN).put(binBytes)
         return out.array()
     }
+
+    private val PLACEHOLDER_ALBEDO by lazy { Png.encode(2, 2, ByteArray(16) { 0xFF.toByte() }) }
+    private val PLACEHOLDER_NORMAL by lazy { Png.encode(2, 2, ByteArray(16) { i -> if (i % 4 == 2 || i % 4 == 3) 0xFF.toByte() else 0x80.toByte() }) }
 
     private fun num(v: Float): String {
         val f = if (v.isFinite()) v else 0f

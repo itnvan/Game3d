@@ -2,13 +2,13 @@ package com.cozyhome.game.decor
 
 import com.cozyhome.game.math.V3
 
-enum class Category { SEATING, TABLES, BEDS, STORAGE, KITCHEN, LIGHTS, PLANTS, RUGS, FUN, OUTDOOR }
+enum class Category { SEATING, TABLES, BEDS, STORAGE, KITCHEN, LIGHTS, PLANTS, RUGS, FUN, OUTDOOR, FESTIVAL, SPECIAL }
 
 enum class Layer { FLOOR, OBJECT }
 
 enum class ZoneRule { HOUSE, YARD }
 
-enum class Use { NONE, SIT, SLEEP, TV, LAMP, BOUNCE, SWING }
+enum class Use { NONE, SIT, SLEEP, TV, LAMP, BOUNCE, SWING, COOK }
 
 data class ItemDef(
     val id: String,
@@ -23,6 +23,9 @@ data class ItemDef(
     val use: Use = Use.NONE,
     val seat: V3? = null,
     val level: Int = 1,
+    val festival: com.cozyhome.game.progress.Festival? = null,
+    val tokenPrice: Int = 0,
+    val reward: Boolean = false,
 )
 
 object Catalog {
@@ -45,7 +48,7 @@ object Catalog {
         ItemDef("wardrobe", Category.STORAGE, 130, 3, 1, 2.0f, ZoneRule.HOUSE, 3, level = 2),
         ItemDef("tv", Category.FUN, 150, 3, 1, 1.3f, ZoneRule.HOUSE, 2, use = Use.TV),
         ItemDef("fridge", Category.KITCHEN, 140, 2, 2, 1.8f, ZoneRule.HOUSE, 3),
-        ItemDef("stove", Category.KITCHEN, 110, 2, 2, 1.0f, ZoneRule.HOUSE, 2),
+        ItemDef("stove", Category.KITCHEN, 110, 2, 2, 1.0f, ZoneRule.HOUSE, 2, use = Use.COOK),
         ItemDef("counter", Category.KITCHEN, 70, 2, 2, 0.95f, ZoneRule.HOUSE, 3),
         ItemDef("sink", Category.KITCHEN, 90, 2, 2, 1.1f, ZoneRule.HOUSE, 3),
         ItemDef("floor_lamp", Category.LIGHTS, 40, 1, 1, 1.6f, ZoneRule.HOUSE, 3, use = Use.LAMP),
@@ -75,6 +78,28 @@ object Catalog {
         ItemDef("fruit_tree", Category.OUTDOOR, 60, 2, 2, 2.6f, ZoneRule.YARD, 3),
         ItemDef("bbq", Category.OUTDOOR, 110, 2, 2, 1.1f, ZoneRule.YARD, 2, level = 2),
         ItemDef("pool", Category.OUTDOOR, 300, 6, 4, 0.45f, ZoneRule.YARD, 2, level = 5),
+        ItemDef("jack_o_lantern", Category.FESTIVAL, 0, 1, 1, 0.5f, ZoneRule.YARD, 1, festival = com.cozyhome.game.progress.Festival.HALLOWEEN, tokenPrice = 4),
+        ItemDef("candy_cauldron", Category.FESTIVAL, 0, 2, 2, 0.55f, ZoneRule.HOUSE, 1, festival = com.cozyhome.game.progress.Festival.HALLOWEEN, tokenPrice = 6),
+        ItemDef("ghost_lamp", Category.FESTIVAL, 0, 2, 2, 1.0f, ZoneRule.YARD, 1, festival = com.cozyhome.game.progress.Festival.HALLOWEEN, tokenPrice = 8),
+        ItemDef("xmas_tree", Category.FESTIVAL, 0, 3, 3, 2.5f, ZoneRule.HOUSE, 1, festival = com.cozyhome.game.progress.Festival.CHRISTMAS, tokenPrice = 10),
+        ItemDef("snowman", Category.FESTIVAL, 0, 2, 2, 1.4f, ZoneRule.YARD, 1, festival = com.cozyhome.game.progress.Festival.CHRISTMAS, tokenPrice = 6),
+        ItemDef("gift_pile", Category.FESTIVAL, 0, 2, 2, 0.6f, ZoneRule.HOUSE, 1, festival = com.cozyhome.game.progress.Festival.CHRISTMAS, tokenPrice = 4),
+        ItemDef("red_lantern", Category.FESTIVAL, 0, 2, 1, 1.9f, ZoneRule.YARD, 1, festival = com.cozyhome.game.progress.Festival.LUNAR_NEW_YEAR, tokenPrice = 5),
+        ItemDef("apricot_tree", Category.FESTIVAL, 0, 3, 3, 2.4f, ZoneRule.YARD, 1, festival = com.cozyhome.game.progress.Festival.LUNAR_NEW_YEAR, tokenPrice = 10),
+        ItemDef("firecracker_string", Category.FESTIVAL, 0, 1, 1, 1.9f, ZoneRule.YARD, 1, festival = com.cozyhome.game.progress.Festival.LUNAR_NEW_YEAR, tokenPrice = 4),
+        ItemDef("star_lantern", Category.FESTIVAL, 0, 2, 1, 1.8f, ZoneRule.YARD, 1, festival = com.cozyhome.game.progress.Festival.MID_AUTUMN, tokenPrice = 5),
+        ItemDef("rabbit_lantern", Category.FESTIVAL, 0, 2, 1, 0.7f, ZoneRule.YARD, 1, festival = com.cozyhome.game.progress.Festival.MID_AUTUMN, tokenPrice = 5),
+        ItemDef("mooncake_table", Category.FESTIVAL, 0, 2, 2, 0.6f, ZoneRule.HOUSE, 1, festival = com.cozyhome.game.progress.Festival.MID_AUTUMN, tokenPrice = 7),
+        ItemDef("heart_arch", Category.FESTIVAL, 0, 5, 1, 2.4f, ZoneRule.YARD, 1, festival = com.cozyhome.game.progress.Festival.VALENTINE, tokenPrice = 9),
+        ItemDef("rose_vase", Category.FESTIVAL, 0, 1, 1, 0.6f, ZoneRule.HOUSE, 1, festival = com.cozyhome.game.progress.Festival.VALENTINE, tokenPrice = 4),
+        ItemDef("cherry_tree", Category.FESTIVAL, 0, 3, 3, 2.4f, ZoneRule.YARD, 1, festival = com.cozyhome.game.progress.Festival.SPRING_BLOOM, tokenPrice = 10),
+        ItemDef("flower_cart", Category.FESTIVAL, 0, 3, 2, 1.0f, ZoneRule.YARD, 1, festival = com.cozyhome.game.progress.Festival.SPRING_BLOOM, tokenPrice = 7),
+        ItemDef("ice_cream_cart", Category.FESTIVAL, 0, 3, 2, 2.3f, ZoneRule.YARD, 1, festival = com.cozyhome.game.progress.Festival.SUMMER_FUN, tokenPrice = 9),
+        ItemDef("beach_chair", Category.FESTIVAL, 0, 2, 2, 0.7f, ZoneRule.YARD, 1, festival = com.cozyhome.game.progress.Festival.SUMMER_FUN, tokenPrice = 5, use = Use.SIT, seat = V3(0f, 0.35f, 0f)),
+        ItemDef("golden_trophy", Category.SPECIAL, 0, 1, 1, 0.65f, ZoneRule.HOUSE, 1, reward = true),
+        ItemDef("fish_trophy", Category.SPECIAL, 0, 2, 1, 0.7f, ZoneRule.HOUSE, 1, reward = true),
+        ItemDef("bug_case", Category.SPECIAL, 0, 2, 1, 0.55f, ZoneRule.HOUSE, 1, reward = true),
+        ItemDef("chef_statue", Category.SPECIAL, 0, 1, 1, 0.7f, ZoneRule.HOUSE, 1, reward = true),
     )
 
     private val byId = items.associateBy { it.id }
