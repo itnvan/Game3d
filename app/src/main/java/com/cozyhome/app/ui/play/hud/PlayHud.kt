@@ -91,6 +91,8 @@ fun PlayHud(vm: GameViewModel) {
         val sport = hud.mode == Mode.BASKETBALL || hud.mode == Mode.SOCCER || hud.mode == Mode.JOG
         if (hud.mode != Mode.DECOR) {
             if (!sport) ProfileChip(vm, Modifier.align(Alignment.TopStart))
+            if (hud.mode == Mode.FREE) ActivityMenu(vm, Modifier.align(Alignment.TopStart).padding(top = 52.dp))
+            if (!sport && hud.mode != Mode.FISH) FestivalChip(vm, Modifier.align(Alignment.TopCenter).padding(top = 40.dp))
             TopRight(vm, Modifier.align(Alignment.TopEnd)) { showSettings = true }
             ClockChip(hud, Modifier.align(Alignment.TopCenter))
         }
@@ -101,6 +103,7 @@ fun PlayHud(vm: GameViewModel) {
             Mode.BOUNCE -> ToyHud(stringResource(R.string.bounce_combo, hud.bounceCombo), stringResource(R.string.act_jump), "🤸", Coral, vm)
             Mode.SWING -> ToyHud(stringResource(R.string.swing_hint), stringResource(R.string.act_push), "🎈", Sky, vm)
             Mode.DECOR -> DecorHud(vm)
+            Mode.FISH -> FishingHud(vm)
             else -> FreeActions(vm)
         }
         Toasts(hud, Modifier.align(Alignment.TopCenter).padding(top = 44.dp))
@@ -110,6 +113,8 @@ fun PlayHud(vm: GameViewModel) {
     hud.result?.let { ResultDialog(vm, it) }
     hud.levelUp?.let { LevelUpDialog(it) { vm.dismissLevelUp() } }
     if (showSettings) SettingsDialog(vm) { showSettings = false }
+    ActivityPanels(vm)
+    CatchCards(vm)
 }
 
 @Composable

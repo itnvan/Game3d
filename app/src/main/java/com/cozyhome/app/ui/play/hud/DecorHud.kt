@@ -141,7 +141,10 @@ private fun EditTools(vm: GameViewModel) {
         if (edit != null && def != null) {
             Pill {
                 Text(stringResource(itemName(def.id)), color = Ink, fontWeight = FontWeight.ExtraBold, fontSize = 13.sp)
-                if (edit.isNew && edit.fromShop) {
+                if (edit.isNew && edit.fromShop && def.tokenPrice > 0) {
+                    com.cozyhome.app.ui.components.GameIcon(com.cozyhome.app.ui.components.Ico.STAR, 14.dp, com.cozyhome.app.ui.theme.SunDark)
+                    Text(def.tokenPrice.toString(), color = Ink, fontWeight = FontWeight.Black, fontSize = 13.sp)
+                } else if (edit.isNew && edit.fromShop) {
                     CoinIcon(14.dp)
                     Text(def.price.toString(), color = Ink, fontWeight = FontWeight.Black, fontSize = 13.sp)
                 }
@@ -163,10 +166,28 @@ private val SIDE_PANEL = 214.dp
 @Composable
 private fun CatalogPanel(vm: GameViewModel, zone: Zone) {
     val rule = if (zone == Zone.HOUSE) ZoneRule.HOUSE else ZoneRule.YARD
-    val categories = remember(rule) { Catalog.categoriesFor(rule) }
+    val festival = vm.hud.festival
+    val inventory = vm.save.inventory
+    val categories = remember(rule, festival, inventory) {
+        Catalog.categoriesFor(rule).filter { c ->
+            when (c) {
+                Category.FESTIVAL -> festival != null && Catalog.items.any { it.zone == rule && it.festival == festival }
+                Category.SPECIAL -> Catalog.items.any { it.zone == rule && it.reward && (inventory[it.id] ?: 0) > 0 }
+                else -> true
+            }
+        }.sortedBy { if (it == Category.FESTIVAL) -1 else it.ordinal }
+    }
     var selected by rememberSaveable(rule) { mutableStateOf(categories.first()) }
     if (selected !in categories) selected = categories.first()
-    val items = remember(rule, selected) { Catalog.items.filter { it.zone == rule && it.category == selected } }
+    val items = remember(rule, selected, festival, inventory) {
+        Catalog.items.filter { def ->
+            def.zone == rule && def.category == selected && when (def.category) {
+                Category.FESTIVAL -> def.festival == festival || (inventory[def.id] ?: 0) > 0
+                Category.SPECIAL -> (inventory[def.id] ?: 0) > 0
+                else -> true
+            }
+        }
+    }
     val shape = RoundedCornerShape(18.dp)
     Column(
         Modifier
@@ -219,6 +240,10 @@ private fun ItemCard(vm: GameViewModel, def: ItemDef) {
         when {
             locked -> Text(stringResource(R.string.locked_level, def.level), color = InkSoft, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
             owned > 0 -> Text(stringResource(R.string.owned_count, owned), color = Mint, fontWeight = FontWeight.ExtraBold, fontSize = 11.sp)
+            def.tokenPrice > 0 -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                com.cozyhome.app.ui.components.GameIcon(com.cozyhome.app.ui.components.Ico.STAR, 12.dp, com.cozyhome.app.ui.theme.SunDark)
+                Text(def.tokenPrice.toString(), color = if (vm.save.tokens >= def.tokenPrice) Ink else Bad, fontWeight = FontWeight.Black, fontSize = 12.sp)
+            }
             else -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 CoinIcon(11.dp)
                 Text(def.price.toString(), color = if (vm.save.coins >= def.price) Ink else Bad, fontWeight = FontWeight.Black, fontSize = 12.sp)

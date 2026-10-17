@@ -43,6 +43,7 @@ class SceneRefs {
     var clouds: Node? = null
     var sky: io.github.sceneview.model.ModelInstance? = null
     val lamps = arrayOfNulls<io.github.sceneview.node.LightNode>(LAMP_SPOTS.size)
+    val act = ActivityRefs()
     var nextGate: Node? = null
     val gates = arrayOfNulls<Node>(8)
     val drops = arrayOfNulls<Node>(12)

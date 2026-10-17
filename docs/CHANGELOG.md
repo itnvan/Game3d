@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-10-18 — đồ hoạ "thật" + câu cá, bắt bọ, nấu ăn, lễ hội, nhiệm vụ
+
+- **Texture chụp thật CC0 (Poly Haven, ambientCG) — owner chọn** khi hỏi "giống ngoài đời 100%": model sinh bằng code
+  không thể thành ảnh chụp trên Mali-G57 mà vẫn mượt, nên giữ hình khối sinh bằng code + phủ vật liệu thật (cỏ, gỗ sàn,
+  ngói, vữa, vải, đất, đá, đường chạy cao su…). Ảnh được **chuẩn hoá về sáng trung tính** rồi nhân với màu đỉnh: cùng
+  1 texture dùng được cho mọi biến thể màu của đồ đạc. Bỏ chuẩn hoá theo từng kênh vì texture bão hoà (sàn gỗ đỏ, thảm
+  xanh) có kênh gần 0 → nhiễu hạt; chuẩn hoá theo độ sáng + giới hạn độ lệch màu ±33%.
+- **Texture dùng chung, không nhúng vào GLB**: gltfio tạo texture riêng cho mỗi model, 40 món đồ × 2–3 ảnh 1K là hàng
+  trăm MB GPU. GLB chỉ nhúng ảnh giữ chỗ 2×2 (để gltfio bật `baseColorIndex`/`normalIndex` và tính tangent), rồi
+  `TextureBank` gắn texture dùng chung vào `baseColorMap`/`normalMap` theo thứ tự primitive (`Glb.primitiveTextures`).
+  Ảnh nạp 1 cái mỗi frame để màn loading không khựng.
+- **Bầu trời là ảnh HDRI thật trên mái vòm unlit** (đổi texture ngày/đêm, nhuộm màu theo giờ) thay vì skybox màu phẳng;
+  ánh sáng môi trường là **SH 9 hệ số tính sẵn từ chính HDRI** + cubemap phản chiếu 64px tự lọc (không prefilter lúc
+  chạy — rẻ, chắc chắn chạy trên Mali). Mái vòm và SH xoay cùng 1 góc để mặt trời trên ảnh khớp hướng nắng. Fog có
+  `cutOffDistance` để không phủ mất mái vòm. Tone mapping PBR Neutral (giữ màu tươi, không bệt như ACES).
+- **Nhân vật làm lại kiểu Play Together**: đầu to, mắt nhiều lớp (tròng màu, đồng tử, 2 điểm sáng, mi, chớp mắt bằng
+  scale node mắt), lông mày, má hồng mềm (quad alpha), 8 kiểu tóc ghép từ "mũ tóc" (mép mái lượn vào trong đầu) + lọn
+  tóc dẹt bám theo bề mặt đầu, 8 mũ, 6 kiểu áo, 3 kiểu quần/váy, 3 kiểu mắt, 7 màu mắt. Đội mũ thì tóc tự nén lại
+  để không xuyên mũ. `Appearance` thêm field có default nên save cũ vẫn mở được.
+- **Cảnh**: địa hình heightfield mượt (hồ là chỗ lõm thật, hết đè cỏ lên nước), cây thân cong có cành + tán phồng đổ
+  sáng/tối theo chiều cao, thông nhiều tầng, cỏ mọc thành bụi quanh hàng rào/gốc cây, hoa mọc theo cụm, đèn đường có
+  đèn chiếu sáng thật ban đêm (point light, chỉ bật khi tối). Đêm tối hẳn (ambient 0,14) thay vì sáng như ngày.
+- **Nội thất 46 món + nhà làm lại**: gỗ vân, vải lanh/nhung/da, gốm, đồng, chân côn, gối phồng, sách thật trên kệ,
+  rèm cửa, mái ngói đất nung, ống khói gạch. Đồ đổ bóng mềm (blob) dưới chân.
+- **Cây trồng thật**: lá là tấm cong 2 mặt (`leafBlade`, có khe cho monstera), xà lách cuốn, cà chua có giàn, bắp
+  có lá rủ, bí ngô có múi. Thu hoạch giờ còn cho 2 nông sản vào kho để nấu ăn.
+- **Hoạt động mới** (logic thuần Kotlin có test): câu cá ở hồ (quăng → chờ, phao nhấp nhử → phao chìm thì giật →
+  giữ để kéo, thả khi dây đỏ; 12 loài theo giờ/độ hiếm, có rác và rương báu), bắt 10 loài côn trùng (bướm, đom đóm
+  đêm, bọ cánh cứng chiều tối…), nấu 8 món ở bếp từ rau nhà trồng, 8 biểu cảm (nhảy, vỗ tay…).
+- **Giữ chân người chơi offline** (owner: chỉ chơi local): 3 nhiệm vụ mỗi ngày sinh theo ngày, điểm danh 7 ngày (ngày 7
+  tặng cúp vàng), bộ sưu tập cá/bọ/món/nông sản có mốc thưởng (đồ trang trí độc quyền), **lễ hội theo lịch thật**
+  (Tết, Valentine, hoa xuân, hè, Trung thu, Halloween, Giáng sinh — Tết/Trung thu tra bảng âm lịch 2025–2030): trang trí
+  cả khu, xu lễ hội, cửa hàng đồ lễ hội, pháo hoa ban đêm. Lịch tự tính (không dùng java.time vì minSdk 24).
+- **UI**: bộ icon vector tự vẽ thay emoji hệ thống, nút bóng (gradient + viền sáng + vệt bóng), màn tạo nhân vật có
+  tab + lưới ảnh xem trước thật từng kiểu, màn loading có tiến độ thật (texture + model) và mẹo chơi.
+
 ## 2026-10-18 — âm thanh + nhạc nền (sinh bằng code)
 
 - **Tự tổng hợp thay vì dùng file âm thanh**: không có asset nào có bản quyền rõ ràng, và cùng hướng với model 3D

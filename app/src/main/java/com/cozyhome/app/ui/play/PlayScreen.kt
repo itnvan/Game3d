@@ -20,6 +20,8 @@ import com.cozyhome.app.render.QualityGovernor
 import com.cozyhome.app.render.buildSkyEnvironment
 import com.cozyhome.app.render.LocalTextureBank
 import com.cozyhome.app.render.MeshLoad
+import com.cozyhome.app.ui.play.scene.ActivityProps
+import com.cozyhome.app.ui.play.scene.applyActivities
 import com.cozyhome.app.render.rememberTextureBank
 import androidx.compose.runtime.CompositionLocalProvider
 import com.cozyhome.app.render.rememberFill
@@ -125,6 +127,7 @@ fun PlayScreen(vm: GameViewModel) {
                 val now = System.currentTimeMillis()
                 vm.tick(dt, now)
                 applier.apply(vm.world, cameraNode, hud.plotVisuals, hud.giftReady, dt)
+                applyActivities(refs.act, vm.world, hud.festival, dt)
                 skyTimer -= dt
                 if (skyTimer <= 0f) {
                     skyTimer = 0.5f
@@ -171,6 +174,7 @@ fun PlayScreen(vm: GameViewModel) {
                 Garden(hud.plotVisuals, refs)
                 SportsProps(refs, showKeeper = hud.mode == Mode.SOCCER, showGates = hud.mode == Mode.JOG)
                 CharacterRig(outfit, refs.player, "player", withCan = true)
+                ActivityProps(refs.act, hud)
             }
         }
 

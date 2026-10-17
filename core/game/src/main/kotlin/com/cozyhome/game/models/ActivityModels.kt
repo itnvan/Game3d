@@ -214,3 +214,32 @@ object ActivityModels {
         withMat(Mat.GLOSSY) { disc(0f, 0.1f, 0f, 0.105f, rgb(0xD96F3A), 16) }
     }
 }
+
+object DishModels {
+    fun dish(id: String): Mesh = mesh {
+        val r = com.cozyhome.game.activities.Cookbook[id] ?: com.cozyhome.game.activities.Cookbook.all.first()
+        val food = rgb(r.food)
+        withMat(Mat.CERAMIC) {
+            lathe(0f, 0f, listOf(0f to 0f, 0.12f to 0f, 0.15f to 0.02f, 0.2f to 0.04f, 0.19f to 0.045f, 0f to 0.02f), rgb(r.plate), 28)
+        }
+        when (id) {
+            "carrot_soup", "veggie_stew" -> {
+                withMat(Mat.CERAMIC) { lathe(0f, 0f, listOf(0f to 0.03f, 0.08f to 0.03f, 0.13f to 0.12f, 0.12f to 0.125f, 0f to 0.1f), Palette.WHITE, 22) }
+                withMat(Mat.GLOSSY) { disc(0f, 0.11f, 0f, 0.115f, food, 18) }
+                withMat(Mat.LEAF_THIN) { group { translate(0.02f, 0.115f, 0f); rotateX(-80f); leafBlade(0.04f, 0.03f, rgb(0x5E9B3A)) } }
+            }
+            "strawberry_cake", "pumpkin_pie" -> {
+                withMat(Mat.SOFT) { cylinder(0f, 0.03f, 0f, 0.12f, 0.08f, if (id == "pumpkin_pie") food else rgb(0xF6E7D2), sides = 24) }
+                withMat(Mat.GLOSSY) {
+                    if (id == "strawberry_cake") {
+                        cylinder(0f, 0.11f, 0f, 0.12f, 0.015f, rgb(0xF8F4EE), sides = 24)
+                        for (k in 0 until 6) { val a = k * 1.047f; sphere(kotlin.math.cos(a) * 0.08f, 0.14f, kotlin.math.sin(a) * 0.08f, 0.02f, rgb(0xD62D3A), 4, 8) }
+                    } else torus(0f, 0.11f, 0f, 0.11f, 0.012f, rgb(0xC98E5A), 24, 5)
+                }
+            }
+            "corn_cob" -> withMat(Mat.GLOSSY) { group { translate(0f, 0.07f, 0f); rotateZ(90f); capsule(0f, -0.11f, 0f, 0.04f, 0.22f, food, sides = 12, capRings = 3) } }
+            "seed_cookies" -> withMat(Mat.SOFT) { for (k in 0 until 4) cylinder(-0.08f + k * 0.05f, 0.03f + (k % 2) * 0.012f, (k % 2) * 0.04f - 0.02f, 0.045f, 0.014f, food, sides = 14) }
+            else -> withMat(Mat.LEAF) { puff(0f, 0.07f, 0f, 0.13f, 0.06f, 0.13f, food, subdivisions = 2, wobble = 0.15f, seed = 3) }
+        }
+    }
+}

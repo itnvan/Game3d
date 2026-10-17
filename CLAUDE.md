@@ -14,6 +14,14 @@ nối logic với SceneView. Chi tiết thiết kế: `docs/design.md`. Lịch s
   ở đây và có unit test JVM (`./gradlew :core:game:test`).
 - **Model 3D sinh bằng code**: `core/game/mesh/MeshBuilder` (hình khối + màu theo đỉnh) → `Glb.encode` → GLB
   bytes → `modelLoader.createModelInstance`. Không có file .glb trong assets. Thêm/sửa model ở `core/game/models/*`.
+- **Vật liệu thật**: `Mat.tex` (enum `Tex`) trỏ tới `assets/tex/<name>_a.jpg` + `_n.jpg` (CC0, nguồn trong
+  `assets/tex/CREDITS.md`). Ảnh đã chuẩn hoá sáng trung tính → màu do vertex color quyết. Texture **không** nhúng
+  GLB: `TextureBank` gắn texture dùng chung sau khi tạo model. Thêm texture: chạy lại công cụ chuẩn hoá (giống các
+  ảnh có sẵn), thêm `Tex(asset, normalScale)`, đặt `texScale` (mét/lần lặp) ở preset `Mat`.
+- **Bầu trời/ánh sáng**: mái vòm `WorldModel.skyDome()` dùng `tex/sky_day|night.jpg`; SH trong `SceneSetup` và
+  `tex/sky_day_reflect.bin` sinh từ cùng HDRI với cùng góc xoay `SKY_AZIMUTH` — đổi HDRI phải sinh lại cả ba.
+- **Hoạt động/tiến độ**: `core/game/activities` (câu cá, bọ, nấu ăn), `core/game/progress` (nhiệm vụ, điểm danh,
+  sưu tập, lễ hội). Mọi tiến độ nhiệm vụ đi qua `GameWorld.progress(kind, n)`.
 - **Soi model trên PC**: `./gradlew :core:game:test` xuất ảnh `core/game/build/sheets/*.png` (raster phần mềm
   `raster/Thumbnail`). Mở ảnh ra xem trước khi cài máy. Thumbnail cửa hàng cũng dùng raster này (cache ở
   `cacheDir/thumbs_v<VERSION>` — đổi model thì tăng `ThumbCache.VERSION`).
@@ -42,3 +50,7 @@ nối logic với SceneView. Chi tiết thiết kế: `docs/design.md`. Lịch s
 7. `Pcm` chỉ xử lý tới `written`: chạy bộ lọc IIR qua đoạn im lặng làm đuôi rơi vào số denormal, chậm gấp nhiều lần.
 8. `Lot.PATHS`/`GARDEN_PATH` (chọn tiếng bước chân) là bản chép toạ độ lối đi trong `WorldModel.paths()` /
    `gardenGround()`: dời lối đi thì sửa cả hai.
+9. Primitive trong GLB phải cùng thứ tự với `Glb.primitiveTextures(mesh)` (bỏ part rỗng): `TextureBank` gắn theo
+   chỉ số primitive. Đổi cách `Glb.encode` lọc part thì sửa cả hai.
+10. Debug lễ hội: `adb shell am start -n com.cozyhome.game/com.cozyhome.app.MainActivity --es festival HALLOWEEN`
+    (chuỗi rỗng để về lịch thật). Debug giờ: `--ef hour 21.5`.

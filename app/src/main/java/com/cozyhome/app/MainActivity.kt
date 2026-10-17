@@ -57,6 +57,7 @@ class MainActivity : ComponentActivity() {
         if (intent.hasExtra("xp")) vm.debugXp(intent.getIntExtra("xp", 0))
         if (intent.hasExtra("hour")) vm.debugHour(intent.getFloatExtra("hour", 9f))
         if (intent.hasExtra("grow")) vm.debugGrow()
+        if (intent.hasExtra("festival")) vm.debugFestival(intent.getStringExtra("festival").orEmpty())
         intent.getStringExtra("sfx")?.let { name -> Sfx.entries.firstOrNull { it.name == name }?.let { vm.audio.play(it) } }
         if (intent.hasExtra("gfx")) vm.gfxDebug = GameViewModel.GfxDebug(
             shadows = intent.getBooleanExtra("shadows", true),
