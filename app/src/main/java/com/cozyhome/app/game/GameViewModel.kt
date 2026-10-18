@@ -590,4 +590,12 @@ class GameViewModel(application: Application, private val store: SaveStore, val 
     var gfxDebug by mutableStateOf<GfxDebug?>(null)
 
     fun debugGrow() = access.update { s -> s.copy(plots = s.plots.map { if (it.crop != null && it.watered) it.copy(stageStartedAt = 0L) else it }) }
+
+    fun debugGarden() = access.update { s ->
+        val crops = com.cozyhome.game.garden.Crops.all
+        s.copy(plots = s.plots.mapIndexed { i, p ->
+            val ripe = i < crops.size
+            p.copy(crop = crops[i % crops.size].id, stage = if (ripe) 3 else 1 + i % 2, watered = true, stageStartedAt = System.currentTimeMillis())
+        })
+    }
 }

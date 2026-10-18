@@ -231,7 +231,7 @@ fun SceneScope.Garden(plots: List<PlotVisual>, refs: SceneRefs) {
     plots.forEachIndexed { i, v ->
         key(i) {
             val c = Lot.PLOTS[i]
-            val soil = rememberMeshInstance(modelLoader, "soil-$i-${v.wet}-${v.crop != null}") { CropModels.soil(v.wet, v.crop != null) }
+            val soil = rememberMeshInstance(modelLoader, "soil-$i-${v.wet}-${v.crop}") { CropModels.soil(v.wet, v.crop) }
             soil?.let { Node(position = Position(c.x, 0f, c.z)) { Part(it, shadow = false) } }
             if (v.crop != null) {
                 val plant = rememberMeshInstance(modelLoader, "plant-$i-${v.crop}-${v.stage}") { CropModels.plant(v.crop, v.stage) }

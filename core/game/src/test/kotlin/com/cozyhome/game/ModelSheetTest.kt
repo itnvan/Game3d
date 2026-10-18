@@ -78,7 +78,7 @@ class ModelSheetTest {
         sheet("props", listOf(
             "basketball" to PropModels.basketball(), "soccer" to PropModels.soccerBall(), "drop" to PropModels.waterDrop(),
             "star" to PropModels.star(), "checkpoint" to PropModels.checkpoint(true), "zzz" to PropModels.zzz(),
-            "soil" to CropModels.soil(false, true), "soilWet" to CropModels.soil(true, true), "net" to WorldModel.hoopNet(),
+            "soil" to CropModels.soil(false, "carrot"), "soilWet" to CropModels.soil(true, "carrot"), "net" to WorldModel.hoopNet(),
             "goalNet" to WorldModel.goalNet(), "can" to CharacterModel.wateringCan(), "swingSeat" to FurnitureModels.swingSeat(0),
         ), cols = 6)
     }
