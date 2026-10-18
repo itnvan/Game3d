@@ -53,4 +53,16 @@ nối logic với SceneView. Chi tiết thiết kế: `docs/design.md`. Lịch s
 9. Primitive trong GLB phải cùng thứ tự với `Glb.primitiveTextures(mesh)` (bỏ part rỗng): `TextureBank` gắn theo
    chỉ số primitive. Đổi cách `Glb.encode` lọc part thì sửa cả hai.
 10. Debug lễ hội: `adb shell am start -n com.cozyhome.game/com.cozyhome.app.MainActivity --es festival HALLOWEEN`
-    (chuỗi rỗng để về lịch thật). Debug giờ: `--ef hour 21.5`.
+    (chuỗi rỗng để về lịch thật). Debug giờ: `--ef hour 21.5`. Vườn đủ 7 loại cây: `--es garden x`. Kho nông sản:
+    `--es pantry x`.
+11. **Không sinh ảnh/mesh trên luồng chính**: `TextureGen.image`, `build()` mesh đều chạy ở `Dispatchers.Default`;
+    luồng chính chỉ upload/`createModelInstance` (cắt lát qua `MeshLoad`). Đo treo luồng chính bằng cách chụp
+    `Looper.getMainLooper().thread.stackTrace` từ 1 thread phụ khi tick main trễ > 150 ms.
+12. Camera chơi chúc 30° nên **không nhìn thấy trời**: thứ gì trên cao (pháo hoa) phải đặt trước camera và chỉ
+    thấy ở `SKY_VIEW_RIG` (nút Pháo hoa đêm lễ hội).
+13. Ánh sáng đêm theo lux thật: trăng 2 600 lux. Đèn điểm dưới ~100 000 lm gần như vô hình ngoài trời — chỉnh
+    `LampSpot.lumens`, đừng chỉnh ánh trăng.
+14. Khi điện thoại khoá: soi bằng emulator `PDFReaderDev` (1080×2400, `-gpu host -no-window -no-snapshot-save
+    -port 5580`). Máy ảo chậm hơn máy thật nhiều lần — dùng để soi hình/luồng, không đo FPS. Sau khi khởi động
+    nguội có màn khoá (screencap ra đen): `adb -s emulator-5580 shell input keyevent 82`. Tắt máy ảo trước khi build
+    release (R8 cần RAM).
