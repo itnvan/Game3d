@@ -19,6 +19,7 @@ object HouseModel {
     private val BASE = rgb(0xB9B1A3)
     private val ROOF_TILE = rgb(0xC0613F)
     private val SOFFIT = rgb(0x9A7356)
+    private val LAMPLIGHT = rgb(0xFFCF8A)
     private const val ROOF_Y = Lot.WALL_H
     private const val RIDGE = 2.3f
     private const val OVERHANG = 0.55f
@@ -32,6 +33,26 @@ object HouseModel {
             withMat(Mat.PLANKS) { block(r.minX, 0f, r.minZ, r.maxX, 0.04f, r.maxZ, a.mix(b, 0.3f)) }
         } else {
             withMat(Mat.TILE) { block(r.minX, 0f, r.minZ, r.maxX, 0.04f, r.maxZ, a) }
+        }
+    }
+
+    fun windowGlow(side: WallSide): Mesh = mesh {
+        val r = Lot.ROOM
+        val inset = Lot.WALL_T / 2f - 0.03f
+        withMat(Mat.WINDOW_GLOW) {
+            for (o in Lot.OPENINGS) {
+                if (o.side != side || o.bottom <= 0f) continue
+                val a = o.center - o.width / 2f
+                val b = o.center + o.width / 2f
+                val y0 = o.bottom
+                val y1 = o.top
+                when (side) {
+                    WallSide.NORTH -> (r.minZ - inset).let { z -> quad(V3(b, y0, z), V3(a, y0, z), V3(a, y1, z), V3(b, y1, z), LAMPLIGHT) }
+                    WallSide.SOUTH -> (r.maxZ + inset).let { z -> quad(V3(a, y0, z), V3(b, y0, z), V3(b, y1, z), V3(a, y1, z), LAMPLIGHT) }
+                    WallSide.WEST -> (r.minX - inset).let { x -> quad(V3(x, y0, a), V3(x, y0, b), V3(x, y1, b), V3(x, y1, a), LAMPLIGHT) }
+                    WallSide.EAST -> (r.maxX + inset).let { x -> quad(V3(x, y0, b), V3(x, y0, a), V3(x, y1, a), V3(x, y1, b), LAMPLIGHT) }
+                }
+            }
         }
     }
 
@@ -328,9 +349,8 @@ private fun MeshBuilder.porchLights() {
         withMat(Mat.METAL) { block(x - 0.06f, 1.95f, -5.86f, x + 0.06f, 2.0f, -5.75f, Palette.INK) }
         withMat(Mat.glow(rgb(0xFFE7A3), 3f)) { roundBox(x, 1.84f, -5.72f, 0.14f, 0.2f, 0.14f, 0.04f, rgb(0xFFF1C2)) }
     }
-    withMat(Mat.glow(rgb(0xFFD36B), 1.4f)) {
-        roundBox(0f, 2.62f, -5.74f, 0.9f, 0.3f, 0.06f, 0.05f, rgb(0xFFE7A8))
-    }
+    withMat(Mat.METAL) { roundBox(0f, 2.62f, -5.76f, 0.86f, 0.28f, 0.04f, 0.03f, rgb(0xC9A15A)) }
+    withMat(Mat.WOOD_FINE) { roundBox(0f, 2.62f, -5.73f, 0.78f, 0.2f, 0.04f, 0.03f, rgb(0x6B4A33)) }
 }
 
 private fun MeshBuilder.frontDoor() {

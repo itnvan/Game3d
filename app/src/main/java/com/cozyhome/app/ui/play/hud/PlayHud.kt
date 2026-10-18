@@ -91,7 +91,7 @@ fun PlayHud(vm: GameViewModel) {
         val sport = hud.mode == Mode.BASKETBALL || hud.mode == Mode.SOCCER || hud.mode == Mode.JOG
         if (hud.mode != Mode.DECOR) {
             if (!sport) ProfileChip(vm, Modifier.align(Alignment.TopStart))
-            if (hud.mode == Mode.FREE) ActivityMenu(vm, Modifier.align(Alignment.TopStart).padding(top = 52.dp))
+            if (hud.mode == Mode.FREE) ActivityMenu(vm, Modifier.align(Alignment.TopStart).padding(top = 62.dp))
             if (!sport && hud.mode != Mode.FISH) FestivalChip(vm, Modifier.align(Alignment.TopCenter).padding(top = 40.dp))
             TopRight(vm, Modifier.align(Alignment.TopEnd)) { showSettings = true }
             ClockChip(hud, Modifier.align(Alignment.TopCenter))
@@ -189,6 +189,9 @@ private fun BoxScope.FreeActions(vm: GameViewModel) {
         horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        if (hud.mode == Mode.FREE && hud.fireworks && !hud.inside) {
+            RoundButton("✨", Lilac, size = 46.dp, label = stringResource(if (hud.skyView) R.string.sky_view_back else R.string.sky_view)) { vm.toggleSkyView() }
+        }
         if (hud.mode == Mode.FREE) {
             RoundButton("🛋️", Peach, size = 46.dp, label = stringResource(R.string.decorate)) { vm.enterDecor() }
         }

@@ -156,7 +156,10 @@ class GameWorld(
         }
         var extra = 0f
         when (mode) {
-            Mode.FREE -> moveFree(input, dt, MAX_SPEED)
+            Mode.FREE -> {
+                if (skyView && (stickActive(input) || !fireworksTime)) skyView = false
+                moveFree(input, dt, MAX_SPEED)
+            }
             Mode.SIT -> if (stickActive(input)) standUp()
             Mode.SLEEP -> {
                 sleepTimer += dt
@@ -748,6 +751,7 @@ class GameWorld(
         input.lookPitch = 0f
         input.zoom = 1f
         val inside = Lot.isInsideHouse(pos)
+        if (mode != Mode.FREE || inside) skyView = false
         val (focus, rig) = when (mode) {
             Mode.DECOR -> {
                 val c = Placement.zoneRect(decorZone).center
@@ -768,7 +772,11 @@ class GameWorld(
             Mode.JOG -> V3(visualPos.x, 1.1f, visualPos.z) to CameraRig(yaw = yawOf(-jogHeading), pitch = 26f, distance = 7.5f, turn = 2.6f, follow = 12f)
             else -> {
                 val f = V3(visualPos.x, 1.0f + rootY * 0.5f, visualPos.z)
-                f to if (inside) CameraRig(minPitch = 46f, maxPitch = 80f, minDistance = 5f, maxDistance = 11.5f) else CameraRig()
+                f to when {
+                    inside -> CameraRig(minPitch = 46f, maxPitch = 80f, minDistance = 5f, maxDistance = 11.5f)
+                    skyView -> SKY_VIEW_RIG
+                    else -> CameraRig()
+                }
             }
         }
         camera.update(dt, focus, look.first, look.second, look.third, rig)
@@ -930,6 +938,15 @@ class GameWorld(
         emoteTime = 0f
     }
 
+    var skyView = false
+        private set
+
+    val fireworksTime: Boolean get() = festival != null && (hour >= 19.5f || hour < 1f)
+
+    fun toggleSkyView() {
+        skyView = !skyView && mode == Mode.FREE && !Lot.isInsideHouse(pos)
+    }
+
     val festival: Festival?
         get() {
             val forced = save.current.festivalDebug
@@ -1002,5 +1019,6 @@ class GameWorld(
         const val HIP = 0.42f
         const val SWING_PIVOT = 2.25f
         const val SWING_LENGTH = 1.55f
+        private val SKY_VIEW_RIG = CameraRig(pitch = -7f, distance = 6f, minPitch = -14f, maxPitch = 18f, minDistance = 4.5f, maxDistance = 9f, turn = 2.4f)
     }
 }

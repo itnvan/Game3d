@@ -28,6 +28,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 private val DAY_SKY_LINEAR = com.cozyhome.game.mesh.rgb(0x9FDCF7).linear()
+private const val WINDOW_GLOW_MAX = 0.85f
 
 class FrameApplier(private val refs: SceneRefs) {
     private var clock = 0f
@@ -187,6 +188,8 @@ class FrameApplier(private val refs: SceneRefs) {
     }
 
     private var skyNight: Boolean? = null
+    private var windowGlow = -1f
+    private val glowing = HashSet<com.google.android.filament.MaterialInstance>()
 
     fun applySky(sky: SkyState, sun: LightNode, fill: LightNode, environment: Environment, view: View, invalidator: RenderInvalidator, baseIbl: Float, bank: TextureBank?) {
         val lin = sky.sky.linear()
@@ -210,8 +213,14 @@ class FrameApplier(private val refs: SceneRefs) {
         sun.intensity = sky.sunIntensity
         sun.lightDirection = Direction(sky.sunDirection.x, sky.sunDirection.y, sky.sunDirection.z)
         fill.intensity = 600f + 4_400f * (1f - sky.night)
-        val lampLumens = smoothstep(0.35f, 0.85f, sky.night) * 24_000f
-        for (l in refs.lamps) l?.let { if (it.intensity != lampLumens) it.intensity = lampLumens }
+        val lampOn = smoothstep(0.35f, 0.85f, sky.night)
+        refs.lamps.forEachIndexed { i, l -> l?.let { val lm = lampOn * LAMP_SPOTS[i].lumens; if (it.intensity != lm) it.intensity = lm } }
+        val glow = smoothstep(0.3f, 0.75f, sky.night) * WINDOW_GLOW_MAX
+        if (glow != windowGlow || refs.windowGlows.any { it != null && it !in glowing }) {
+            windowGlow = glow
+            glowing.clear()
+            for (mi in refs.windowGlows) mi?.let { it.setParameter("baseColorFactor", 1f, 1f, 1f, glow); glowing += it }
+        }
         view.fogOptions = view.fogOptions.apply {
             enabled = true
             distance = 38f

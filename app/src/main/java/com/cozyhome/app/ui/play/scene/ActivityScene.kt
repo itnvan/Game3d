@@ -13,6 +13,7 @@ import com.cozyhome.game.game.GameWorld
 import com.cozyhome.game.math.DEG
 import com.cozyhome.game.math.Rng
 import com.cozyhome.game.math.V3
+import com.cozyhome.game.math.smoothstep
 import com.cozyhome.game.mesh.rgb
 import com.cozyhome.game.models.ActivityModels
 import com.cozyhome.game.models.FestivalModels
@@ -41,16 +42,18 @@ class ActivityRefs {
     val fireworks = arrayOfNulls<Node>(5)
     val fireworkTime = FloatArray(5) { -1f }
     val fireworkPos = Array(5) { V3.ZERO }
+    val fireworkMats = arrayOfNulls<List<com.google.android.filament.MaterialInstance>>(5)
     var fireworkClock = 0f
     val rng = Rng(42)
 
     fun clear() {
         rod = null; lineYaw = null; linePitch = null; bobber = null; fishShow = null; netRoot = null; netSwing = null; pot = null
-        emotes.clear(); steam.fill(null); bugNodes.clear(); fireworks.fill(null)
+        emotes.clear(); steam.fill(null); bugNodes.clear(); fireworks.fill(null); fireworkMats.fill(null)
     }
 }
 
 private val FIREWORK_COLORS = listOf(rgb(0xFF5C7A), rgb(0xFFD54F), rgb(0x5AD1FF), rgb(0x9B7BFF), rgb(0x6FE39A))
+private val FIREWORK_LINEAR = FIREWORK_COLORS.map { it.linear() }
 
 @Composable
 fun SceneScope.ActivityProps(act: ActivityRefs, hud: HudState) {
@@ -107,6 +110,10 @@ fun SceneScope.ActivityProps(act: ActivityRefs, hud: HudState) {
         for (k in act.fireworks.indices) {
             key("fw-$k") {
                 val fw = rememberMeshInstance(modelLoader, "firework-$k") { FestivalModels.firework(FIREWORK_COLORS[k % FIREWORK_COLORS.size], 100 + k) }
+                DisposableEffect(fw) {
+                    act.fireworkMats[k] = fw?.materialInstances?.toList()
+                    onDispose { act.fireworkMats[k] = null }
+                }
                 Node(isVisible = false, apply = { act.fireworks[k] = this }) { fw?.let { Part(it, shadow = false) } }
             }
         }
@@ -205,15 +212,19 @@ fun applyActivities(act: ActivityRefs, world: GameWorld, festival: Festival?, dt
         n.scale = if (sp?.flyer == true) Scale(0.35f + 0.65f * kotlin.math.abs(sin(b.flap)), 1f, 1f) else Scale(1f)
     }
     for (list in act.bugNodes.values) for (n in list) if (n != null && n.isVisible && n !in shown) n.isVisible = false
-    val night = world.hour >= 19.5f || world.hour < 1f
     act.fireworkClock -= dt
     for (k in act.fireworks.indices) {
         val node = act.fireworks[k] ?: continue
         var t = act.fireworkTime[k]
-        if (t < 0f && festival != null && night && act.fireworkClock <= 0f) {
+        if (t < 0f && festival != null && world.fireworksTime && act.fireworkClock <= 0f) {
             act.fireworkClock = act.rng.range(0.6f, 1.6f)
             act.fireworkTime[k] = 0f
-            act.fireworkPos[k] = V3(act.rng.range(-18f, 18f), act.rng.range(13f, 20f), act.rng.range(12f, 30f))
+            val eye = world.frame.eye
+            val look = world.frame.target - eye
+            val ahead = V3(look.x, 0f, look.z).let { if (it.length < 1e-3f) V3(0f, 0f, -1f) else it.normalized() }
+            val distance = act.rng.range(20f, 30f)
+            val side = act.rng.range(-12f, 12f)
+            act.fireworkPos[k] = V3(eye.x + ahead.x * distance - ahead.z * side, act.rng.range(8f, 14f), eye.z + ahead.z * distance + ahead.x * side)
             t = 0f
         }
         if (t >= 0f) {
@@ -229,6 +240,9 @@ fun applyActivities(act: ActivityRefs, world: GameWorld, festival: Festival?, dt
             val p = act.fireworkPos[k]
             node.position = Position(p.x, p.y - t * t * 0.6f, p.z)
             node.scale = Scale(0.3f + grow * 5.5f)
+            val fade = 1f - smoothstep(0.45f, 1f, t / 1.7f)
+            val c = FIREWORK_LINEAR[k % FIREWORK_LINEAR.size]
+            act.fireworkMats[k]?.forEach { it.setParameter("emissiveFactor", c[0] * fade, c[1] * fade, c[2] * fade) }
         } else if (node.isVisible) node.isVisible = false
     }
 }

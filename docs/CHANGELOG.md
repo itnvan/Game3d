@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-10-18 — chạy thử trên máy ảo: sửa lỗi nạp, đêm, pháo hoa
+
+Điện thoại test bị khoá nên chạy trên emulator `PDFReaderDev` (1080×2400, GPU host) để soi từng màn.
+
+- **Texture sinh bằng code (lá, nước, chấm, trời) tạo trên luồng chính** trong `TextureBank.upload` → treo 2–3 s
+  lúc mở màn (bắt bằng watchdog chụp stack luồng chính). Chuyển `TextureGen.image` sang `Dispatchers.Default`, luồng
+  chính chỉ upload.
+- **Nhân vật hiện từng mảnh lúc nạp** (mắt lơ lửng, thân không đầu): `CharacterRig` chỉ dựng body khi đủ mọi bộ phận
+  và trả về `Boolean` đã đủ; màn tạo nhân vật có lớp phủ trời + vòng xoay, mờ dần khi sân khấu + rig + texture xong
+  (chốt 1 lần, đổi đồ sau đó không nháy). `rememberMeshInstance` gán `null` khi mesh mới rỗng thay vì giữ mesh cũ.
+- **Đèn đường không hắt sáng**: 24 000 lm chỉ ~1/8 ánh trăng (2 600 lux) nên vô hình. Mỗi cột đèn có lumen riêng:
+  đèn đường 600 000 lm (quầng ~4–5 m bằng ánh trăng), đèn hiên 70 000 lm (sát tường, mạnh hơn là cháy trắng). Đèn đồ
+  đạc 60 000 (trong nhà) / 120 000 (ngoài vườn) — luôn bật nên giữ mức ban ngày gần như không thấy.
+- **Cửa sổ sáng ấm ban đêm**: mỗi tường có thêm tấm unlit 1 mặt hướng ra ngoài sau lớp kính, alpha theo độ tối
+  (`windowGlow`). Chỉ gắn vào tường nguyên nên vào trong nhà (tường cắt) không bị che cửa.
+- **Pháo hoa không bao giờ thấy được**: bắn ở sau lưng camera, cao 13–20 m trong khi camera chúc 30° chỉ thấy tới
+  ~8° dưới chân trời. Pháo hoa giờ nổ phía trước camera (20–30 m, cao 8–14 m) + nút "Pháo hoa" chỉ hiện vào đêm lễ hội:
+  camera hạ thấp ngước lên (`SKY_VIEW_RIG`), chạm cần điều khiển là về như cũ. Hạt pháo đổi từ cầu trắng (emissive 6
+  bị tone map thành trắng) sang tia màu emissive 1,8 + mờ dần bằng `emissiveFactor`.
+- Bếp: món chưa đủ cấp hiện ổ khoá "Lv N" thay vì nút xám không rõ lý do. Album: thẻ cá luôn chừa dòng "Best" để hàng
+  đều. Hàng nút hoạt động không còn đè thẻ tên. Chuỗi `\x27` (hiện "Todayx27s") thành `\'`. Biển phát sáng trên cửa
+  (ban ngày như khối vàng lạc chỗ) thành biển gỗ viền đồng.
+
 ## 2026-10-18 — đồ hoạ "thật" + câu cá, bắt bọ, nấu ăn, lễ hội, nhiệm vụ
 
 - **Texture chụp thật CC0 (Poly Haven, ambientCG) — owner chọn** khi hỏi "giống ngoài đời 100%": model sinh bằng code

@@ -103,6 +103,7 @@ data class Mat(
         val HAIR = Mat(roughness = 0.42f)
         val EYE = Mat(roughness = 0.06f)
         val SHADOW_BLOB = Mat(unlit = true, blend = true, tex = Tex.DOT, alpha = 0.5f)
+        val WINDOW_GLOW = Mat(unlit = true, blend = true, alpha = 0f)
         val SOFT_DOT = Mat(roughness = 0.8f, blend = true, tex = Tex.DOT)
         fun glow(color: Rgb, strength: Float = 3f) = Mat(roughness = 0.5f, emissive = color, emissiveStrength = strength)
     }

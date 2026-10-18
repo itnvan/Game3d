@@ -63,7 +63,10 @@ fun rememberMeshInstance(modelLoader: ModelLoader, key: Any, build: () -> Mesh):
                 runCatching {
                     build().takeUnless { it.isEmpty }?.let { Built(it.toDirectBuffer(key.toString()), Glb.primitiveTextures(it)) }
                 }.onFailure { Log.e("MeshModels", "build($key) failed", it) }.getOrNull()
-            } ?: return@produceState
+            } ?: run {
+                value = null
+                return@produceState
+            }
             value = MeshLoad.onMain {
                 val t0 = System.nanoTime()
                 runCatching { modelLoader.createModelInstance(built.buffer) }

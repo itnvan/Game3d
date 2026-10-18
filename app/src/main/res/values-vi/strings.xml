@@ -340,4 +340,6 @@
     <string name="caught_title">Bạn câu được</string>
     <string name="bug_title">Bạn bắt được</string>
     <string name="cooked_title">Bạn đã nấu</string>
+    <string name="sky_view">Pháo hoa</string>
+    <string name="sky_view_back">Quay lại</string>
 </resources>

@@ -68,10 +68,11 @@ class TextureBank(private val engine: Engine, private val context: Context) {
         }
         jobs.forEachIndexed { i, job ->
             val bitmap = if (job.path != null) withContext(Dispatchers.IO) { decode(job.path) } else null
+            val generated = if (bitmap == null && job.sky == null && !job.normal) withContext(Dispatchers.Default) { TextureGen.image(job.tex) } else null
             if (destroyed) return
             withFrameNanos { }
             if (destroyed) return
-            runCatching { upload(job, bitmap) }.onFailure { Log.e("TextureBank", "upload ${job.path ?: job.tex}", it) }
+            runCatching { upload(job, bitmap, generated) }.onFailure { Log.e("TextureBank", "upload ${job.path ?: job.tex}", it) }
             bitmap?.recycle()
             progress = (i + 1) / jobs.size.toFloat()
         }
@@ -96,7 +97,7 @@ class TextureBank(private val engine: Engine, private val context: Context) {
         .usage(Texture.Usage.DEFAULT or Texture.Usage.GEN_MIPMAPPABLE)
         .build(engine)
 
-    private fun upload(job: Job, bitmap: Bitmap?) {
+    private fun upload(job: Job, bitmap: Bitmap?, generated: TexImage?) {
         if (bitmap != null) {
             val tex = newTexture(bitmap.width, bitmap.height, !job.normal)
             TextureHelper.setBitmap(engine, tex, 0, bitmap)
@@ -106,9 +107,8 @@ class TextureBank(private val engine: Engine, private val context: Context) {
                 job.normal -> normals[job.tex] = tex
                 else -> albedo[job.tex] = tex
             }
-        } else if (job.sky == null && !job.normal) {
-            val img = TextureGen.image(job.tex)
-            albedo[job.tex] = fromImage(img)
+        } else if (generated != null) {
+            albedo[job.tex] = fromImage(generated)
         }
     }
 

@@ -210,7 +210,7 @@
         <item>Festivals change with the real calendar</item>
         <item>Cook your harvest for bigger rewards</item>
     </string-array>
-    <string name="item_jack_o_lantern">Jack-o\x27-lantern</string>
+    <string name="item_jack_o_lantern">Jack-o\'-lantern</string>
     <string name="item_candy_cauldron">Candy cauldron</string>
     <string name="item_ghost_lamp">Ghost lamp</string>
     <string name="item_xmas_tree">Christmas tree</string>
@@ -278,7 +278,7 @@
     <string name="dish_pumpkin_pie">Pumpkin pie</string>
     <string name="dish_seed_cookies">Seed cookies</string>
     <string name="fest_lunar_new_year">Lunar New Year</string>
-    <string name="fest_valentine">Valentine\x27s week</string>
+    <string name="fest_valentine">Valentine\'s week</string>
     <string name="fest_spring_bloom">Spring bloom</string>
     <string name="fest_summer_fun">Summer fun</string>
     <string name="fest_mid_autumn">Mid-Autumn festival</string>
@@ -296,7 +296,7 @@
     <string name="quest_decorate">Place %1$d new item</string>
     <string name="quest_bounce">Bounce %1$d times</string>
     <string name="quest_rare_fish">Catch %1$d rare fish</string>
-    <string name="quests_title">Today\x27s quests</string>
+    <string name="quests_title">Today\'s quests</string>
     <string name="claim">Claim</string>
     <string name="claimed">Done</string>
     <string name="login_title">Daily gift</string>
@@ -340,4 +340,6 @@
     <string name="caught_title">You caught</string>
     <string name="bug_title">You caught</string>
     <string name="cooked_title">You cooked</string>
+    <string name="sky_view">Fireworks</string>
+    <string name="sky_view_back">Back</string>
 </resources>

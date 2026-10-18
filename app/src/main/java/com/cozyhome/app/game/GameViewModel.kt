@@ -113,6 +113,8 @@ class GameViewModel(application: Application, private val store: SaveStore, val 
         hud.mode = world.mode
         hud.interaction = world.interaction
         hud.inside = world.frame.inside
+        hud.fireworks = world.fireworksTime
+        hud.skyView = world.skyView
         val hour = DayClock.hour(now, save.clockOffsetMs)
         hud.hourQuarter = (hour * 4f).toInt()
         audio.setNight(DayClock.isNight(hour))
@@ -221,6 +223,11 @@ class GameViewModel(application: Application, private val store: SaveStore, val 
         handleEvents(System.currentTimeMillis())
         toast(Msg.MILESTONE)
         refreshDaily()
+    }
+
+    fun toggleSkyView() {
+        world.toggleSkyView()
+        hud.skyView = world.skyView
     }
 
     fun setHold(down: Boolean) {

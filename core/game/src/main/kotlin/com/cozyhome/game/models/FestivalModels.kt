@@ -501,14 +501,17 @@ object FestivalModels {
 
     fun firework(color: Rgb, seed: Int): Mesh = mesh {
         val rng = Rng(seed.toLong())
-        withMat(Mat.glow(color, 6f)) {
-            repeat(42) {
+        val spark = color.lighter(0.12f)
+        withMat(Mat.glow(color, 1.8f)) {
+            repeat(38) {
                 val u = rng.range(-1f, 1f)
                 val a = rng.range(0f, 6.28f)
                 val r = kotlin.math.sqrt(1f - u * u)
                 val d = V3(cos(a) * r, u, sin(a) * r)
-                sphere(d.x, d.y, d.z, 0.035f, color.lighter(0.4f), 3, 5)
-                sphere(d.x * 0.8f, d.y * 0.8f, d.z * 0.8f, 0.022f, color, 2, 4)
+                val reach = rng.range(0.8f, 1f)
+                val up = if (abs(d.y) > 0.9f) V3(1f, 0f, 0f) else V3(0f, 1f, 0f)
+                tube(listOf(d * (reach * 0.42f), d * reach), { t -> 0.003f + 0.013f * t }, color, sides = 4, up = up, caps = false)
+                sphere(d.x * reach, d.y * reach, d.z * reach, 0.024f, spark, 2, 4)
             }
         }
     }

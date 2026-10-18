@@ -1,5 +1,7 @@
 package com.cozyhome.app.ui.create
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -26,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -42,6 +45,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -355,27 +359,39 @@ private fun Preview(look: Appearance) {
             }
         }
     }
-    SceneView(
-        modifier = Modifier.fillMaxSize(),
-        engine = engine,
-        modelLoader = modelLoader,
-        materialLoader = materialLoader,
-        environmentLoader = environmentLoader,
-        view = view,
-        environment = environment,
-        mainLightNode = sun,
-        fillLightNode = fill,
-        cameraNode = camera,
-        cameraManipulator = null,
-        onGestureListener = null,
-        autoCenterContent = false,
-    ) {
-        CompositionLocalProvider(LocalTextureBank provides bank) { PreviewStage(outfit, refs) }
+    var staged by remember { mutableStateOf(false) }
+    val veil by animateFloatAsState(if (staged && bank.ready) 0f else 1f, tween(450), label = "veil")
+    Box(Modifier.fillMaxSize()) {
+        SceneView(
+            modifier = Modifier.fillMaxSize(),
+            engine = engine,
+            modelLoader = modelLoader,
+            materialLoader = materialLoader,
+            environmentLoader = environmentLoader,
+            view = view,
+            environment = environment,
+            mainLightNode = sun,
+            fillLightNode = fill,
+            cameraNode = camera,
+            cameraManipulator = null,
+            onGestureListener = null,
+            autoCenterContent = false,
+        ) {
+            CompositionLocalProvider(LocalTextureBank provides bank) { PreviewStage(outfit, refs) { staged = true } }
+        }
+        if (veil > 0f) {
+            Box(
+                Modifier.fillMaxSize().graphicsLayer { alpha = veil }.background(Brush.verticalGradient(listOf(SkyTop, SkyBottom))),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator(color = White, strokeWidth = 4.dp, modifier = Modifier.size(42.dp))
+            }
+        }
     }
 }
 
 @Composable
-private fun io.github.sceneview.SceneScope.PreviewStage(outfit: Outfit, refs: RigRefs) {
+private fun io.github.sceneview.SceneScope.PreviewStage(outfit: Outfit, refs: RigRefs, onStaged: () -> Unit) {
     val stage = rememberMeshInstance(modelLoader, "stage-v2") {
         mesh {
             withMat(Mat.GRASS) { cylinder(0f, -0.2f, 0f, 1.3f, 0.2f, rgb(0x78A552), sides = 48) }
@@ -390,5 +406,7 @@ private fun io.github.sceneview.SceneScope.PreviewStage(outfit: Outfit, refs: Ri
         }
     }
     stage?.let { Part(it) }
-    CharacterRig(outfit, refs, "preview")
+    val rigged = CharacterRig(outfit, refs, "preview")
+    val staged = stage != null && rigged
+    LaunchedEffect(staged) { if (staged) onStaged() }
 }

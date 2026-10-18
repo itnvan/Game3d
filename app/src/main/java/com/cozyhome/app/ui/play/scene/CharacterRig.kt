@@ -53,7 +53,7 @@ class RigRefs {
 }
 
 @Composable
-fun SceneScope.CharacterRig(outfit: Outfit, refs: RigRefs, keyPrefix: String, withCan: Boolean = false, gloves: Boolean = false) {
+fun SceneScope.CharacterRig(outfit: Outfit, refs: RigRefs, keyPrefix: String, withCan: Boolean = false, gloves: Boolean = false): Boolean {
     val torso = rememberMeshInstance(modelLoader, "$keyPrefix-torso-$outfit") { CharacterModel.torso(outfit) }
     val head = rememberMeshInstance(modelLoader, "$keyPrefix-head-$outfit") { CharacterModel.head(outfit) }
     val eyes = rememberMeshInstance(modelLoader, "$keyPrefix-eyes-$outfit") { CharacterModel.eyes(outfit) }
@@ -64,10 +64,12 @@ fun SceneScope.CharacterRig(outfit: Outfit, refs: RigRefs, keyPrefix: String, wi
     val can = if (withCan) rememberMeshInstance(modelLoader, "$keyPrefix-can") { CharacterModel.wateringCan() } else null
     val gloveL = if (gloves) rememberMeshInstance(modelLoader, "$keyPrefix-gloveL") { CharacterModel.gloves() } else null
     val gloveR = if (gloves) rememberMeshInstance(modelLoader, "$keyPrefix-gloveR") { CharacterModel.gloves() } else null
+    val complete = listOf(torso, head, eyes, armL, armR, legL, legR).all { it != null } &&
+        (!withCan || can != null) && (!gloves || (gloveL != null && gloveR != null))
 
     Node(apply = { refs.root = this }) {
         Node(apply = { refs.tilt = this }) {
-            Node(position = Position(0f, CharacterModel.HIP, 0f), apply = { refs.body = this }) {
+            if (complete) Node(position = Position(0f, CharacterModel.HIP, 0f), apply = { refs.body = this }) {
                 torso?.let { Part(it) }
                 Node(position = Position(0f, CharacterModel.NECK, 0f), apply = { refs.head = this }) {
                     head?.let { Part(it) }
@@ -95,6 +97,7 @@ fun SceneScope.CharacterRig(outfit: Outfit, refs: RigRefs, keyPrefix: String, wi
             }
         }
     }
+    return complete
 }
 
 @Composable

@@ -76,6 +76,8 @@ class HudState {
     var dishCard by mutableStateOf<WorldEvent.Cooked?>(null)
     var panel by mutableStateOf<HudPanel?>(null)
     var festival by mutableStateOf<com.cozyhome.game.progress.Festival?>(null)
+    var fireworks by mutableStateOf(false)
+    var skyView by mutableStateOf(false)
     var festivalNext by mutableStateOf<Pair<com.cozyhome.game.progress.Festival, Int>?>(null)
     var questsReady by mutableIntStateOf(0)
     var loginReady by mutableStateOf(false)

@@ -438,7 +438,18 @@ private fun CookPanel(vm: GameViewModel) {
                                     Text("$n", color = if (ok) Good else Bad, fontWeight = FontWeight.Black, fontSize = 10.sp)
                                 }
                             }
-                            ChunkyButton(stringResource(R.string.cook_btn), if (can) Coral else InkSoft, enabled = can, height = 30.dp, fontSize = 11.sp) { vm.cook(r.id) }
+                            if (level < r.level) {
+                                Row(
+                                    Modifier.height(30.dp).background(Ink.copy(alpha = 0.07f), RoundedCornerShape(15.dp)).padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    GameIcon(Ico.LOCK, 13.dp, InkSoft)
+                                    Text(stringResource(R.string.level_short, r.level), color = InkSoft, fontWeight = FontWeight.Black, fontSize = 11.sp)
+                                }
+                            } else {
+                                ChunkyButton(stringResource(R.string.cook_btn), if (can) Coral else InkSoft, enabled = can, height = 30.dp, fontSize = 11.sp) { vm.cook(r.id) }
+                            }
                         }
                     }
                 }
@@ -503,7 +514,10 @@ private fun AlbumPanel(vm: GameViewModel) {
                                 AlbumBook.CROPS -> stringResource(cropName(id))
                             }
                             Text(if (found) name else "???", color = Ink, fontWeight = FontWeight.ExtraBold, fontSize = 10.sp, maxLines = 1)
-                            if (found && tab == AlbumBook.FISH) album.fish[id]?.let { Text(stringResource(R.string.best_size, it.bestCm), color = InkSoft, fontSize = 9.sp, fontWeight = FontWeight.Bold) }
+                            if (tab == AlbumBook.FISH) {
+                                val best = album.fish[id]?.takeIf { found }?.let { stringResource(R.string.best_size, it.bestCm) }
+                                Text(best ?: " ", color = InkSoft, fontSize = 9.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                            }
                             if (tab == AlbumBook.FISH) FishDex[id]?.let { Stars(it.rarity.stars, 9) }
                             if (tab == AlbumBook.BUGS) BugDex[id]?.let { Stars(it.rarity.stars, 9) }
                         }
