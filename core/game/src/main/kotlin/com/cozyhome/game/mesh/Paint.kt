@@ -97,7 +97,7 @@ data class Mat(
         val ROOF = Mat(roughness = 0.75f, tex = Tex.ROOF, texScale = 1.8f)
         val GRASS = Mat(roughness = 1f, tex = Tex.GRASS, texScale = 2.2f)
         val SOIL = Mat(roughness = 1f, tex = Tex.SOIL, texScale = 1.0f)
-        val LEAF = Mat(roughness = 0.8f, tex = Tex.LEAF, texScale = 0.7f)
+        val LEAF = Mat(roughness = 0.8f, tex = Tex.FOLIAGE, texScale = 0.9f)
         val BARK = Mat(roughness = 0.95f, tex = Tex.BARK, texScale = 0.8f)
         val SKIN = Mat(roughness = 0.62f)
         val HAIR = Mat(roughness = 0.42f)

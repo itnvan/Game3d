@@ -1,6 +1,8 @@
 package com.cozyhome.game.mesh
 
 import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
@@ -13,7 +15,7 @@ enum class Tex(val size: Int, val asset: String? = null, val normalScale: Float 
     CARPET(128, "carpet", 0.8f), DOT(64), STONE(128, "stone", 1f), BRICK(128, "brick", 1f), TILE(128, "tile", 0.8f),
     PLANKS(256, "planks", 0.7f), KNIT(128, "knit", 1f), SKY(64), DECK(128, "deck", 0.8f), JERSEY(128, "jersey", 0.7f),
     DENIM(128, "denim", 0.8f), LEATHER(128, "leather", 0.7f), VELVET(128, "velvet", 0.6f), TRACK(128, "track", 0.8f),
-    SAND(128, "sand", 0.8f),
+    SAND(128, "sand", 0.8f), FOLIAGE(256),
 }
 
 class TexImage(val size: Int, val rgba: ByteArray)
@@ -119,6 +121,51 @@ object TextureGen {
     }
 
     private val TAU = (2 * PI).toFloat()
+
+    private fun foliage(u: Float, v: Float): C {
+        var lum = 0.4f + fbm(u, v, 8, 3, 61) * 0.14f
+        var warm = 0f
+        for (layer in 0 until 3) {
+            val n = 10 + layer * 5
+            val seed = 70 + layer * 17
+            val x = u * n
+            val y = v * n
+            val ix = floor(x).toInt()
+            val iy = floor(y).toInt()
+            var best = -1f
+            var shade = 0f
+            for (dy in -1..1) for (dx in -1..1) {
+                val cx = ix + dx
+                val cy = iy + dy
+                val wx = Math.floorMod(cx, n)
+                val wy = Math.floorMod(cy, n)
+                val order = hash(wx, wy, seed + 4)
+                if (order <= best) continue
+                val ang = hash(wx, wy, seed + 2) * PI.toFloat()
+                val len = 0.75f + hash(wx, wy, seed + 3) * 0.35f
+                val ddx = x - (cx + hash(wx, wy, seed))
+                val ddy = y - (cy + hash(wx, wy, seed + 1))
+                val ca = cos(ang)
+                val sa = sin(ang)
+                val along = (ddx * ca + ddy * sa) / len
+                if (along < -1f || along > 1f) continue
+                val half = len * 0.42f * (1f - along * along) * (1f + 0.25f * along)
+                val across = abs(-ddx * sa + ddy * ca) / half.coerceAtLeast(1e-4f)
+                if (across > 1f) continue
+                best = order
+                val rib = 1f - 0.16f * (1f - smooth(0f, 0.12f, across))
+                val edge = 1f - 0.2f * smooth(0.65f, 1f, across)
+                val tip = 0.86f + 0.14f * (0.5f - 0.5f * along)
+                shade = (0.72f + hash(wx, wy, seed + 5) * 0.3f + layer * 0.05f) * rib * edge * tip
+            }
+            if (best >= 0f) {
+                lum = shade
+                warm = layer * 0.025f
+            }
+        }
+        val g = lum + (fbm(u, v, 32, 2, 66) - 0.5f) * 0.06f
+        return C(g * (0.95f + warm), g, g * (0.84f - warm))
+    }
 
     private fun sample(tex: Tex, u: Float, v: Float): C = when (tex) {
         Tex.SKY -> {
@@ -274,6 +321,7 @@ object TextureGen {
             val g = (shade + n) * rim * center
             C(g * 0.98f, g, g * 0.9f)
         }
+        Tex.FOLIAGE -> foliage(u, v)
         Tex.BARK -> {
             val streak = fbm(u, v, 16, 2, 4, 29)
             val crack = smooth(0.7f, 0.82f, noise(u, v, 24, 4, 30))
